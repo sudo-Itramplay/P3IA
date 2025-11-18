@@ -1,4 +1,4 @@
-
+import random
 
 # Definir accions
 # entenc k ha de tenir estat
@@ -12,12 +12,22 @@ class Agent:
 
 
     def policy():
-
+        """
+        Mètode que executarà l'acció. Epsilon greedy?
+        """
+        if random.random() < self.epsilon:
+            # Exploració
+            return acció_aleatòria()
+        else:
+            # Explotació
+            return acció_amb_max_Q(state)
 
         return "a"
 
     def learn():
-
+        """
+        Mètode que apendra de l'acció feta. Bellman
+        """
                
         return "b"
 
