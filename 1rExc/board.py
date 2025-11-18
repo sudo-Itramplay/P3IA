@@ -5,6 +5,15 @@ class Board:
     """
     Representació d'un tauler d'escacs reduït (3x4) per a entrenament RL.
     """
+    initState
+    
+    rows
+    cols
+        
+    board
+    currentStateW
+    currentStateB
+    listSuccessorStates
 
     def __init__(self, initState=None):
         self.rows = 3

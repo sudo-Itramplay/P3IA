@@ -6,9 +6,10 @@ class Agent:
     #learning rate (quant ràpid oblidem el passat)
     alpha=0.1
     # Què tant important és el futur
-    gamma=0.99
+    gamma=0.90
     # Cada quant explirem (fem coses rares, bogeries, coses que no feiem abans)
     epsilon=0.9
+
 
     def policy():
 
@@ -17,12 +18,9 @@ class Agent:
 
     def learn():
 
-
+               
         return "b"
 
-    def policy():
 
-
-        return "a"
 
     
