@@ -13,6 +13,7 @@ import board
 import numpy as np
 import sys
 import queue
+import auxiliary_P3 as p3
 from typing import List
 
 RawStateType = List[List[List[int]]]
