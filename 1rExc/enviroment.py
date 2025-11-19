@@ -8,14 +8,14 @@ class Enviroment:
     cols = 0
         
     board = []
-    # coord Agent
+    # coord Agent (Rei Blanc)
     currentStateW = []
-    # coord Recompensa final  
+    # coord Recompensa final (Objectiu)
     currentStateB = []
-    # Recompensa per moviment
+    # Recompensa per moviment (pas)
     reward = -1
     # Bonificació final
-    treasure=100
+    treasure = 100
     # Wall penalization
     wall_penalization = -100
     
@@ -34,13 +34,13 @@ class Enviroment:
             # 2. Posem el valor 100 a la posició B
             self.board[self.currentStateB] = 100
             
-            # 3. Posem el King a la posició W (això sobreescriu el valor, actuant com a punt 0/Inici)
+            # 3. Posem el King a la posició W
             self.board[self.currentStateW] = piece.King(True) 
             
             self.initState = 1
 
-
-
+    def get_enviroment(self):
+        return self.board # Retornem el tauler o l'estat rellevant
 
     def get_state(self):
         """
@@ -48,37 +48,9 @@ class Enviroment:
         """
         return self.currentStateW
 
-    def get_target_pos(self):
-        """
-        Retorna la posició de l'objectiu (Casella 100).
-        """
-        return self.currentStateB
-
-    def set_target_pos(self, new_pos):
-        """
-        Defineix una nova posició per a l'objectiu (B).
-        Això requereix actualitzar el tauler i l'estat intern.
-        """
-        new_r, new_c = new_pos
-        
-        # 1. Validació de límits
-        if not (0 <= new_r < self.rows and 0 <= new_c < self.cols):
-            print(f"Error: Posició objectiu fora de límits: {new_pos}")
-            return False
-
-        # 2. Esborrem l'objectiu antic (-1) i actualitzem la posició B
-        self.board[self.currentStateB] = -1
-        self.currentStateB = new_pos
-        
-        # 3. Definim el nou objectiu amb valor 100
-        self.board[self.currentStateB] = 100
-        
-        return True
-          
     def print_board(self):
         """
-        Mostra el tauler de joc de forma visual, utilitzant K per al Rei 
-        i 100 per a l'objectiu.
+        Mostra el tauler de joc de forma visual.
         """
         print("-" * (self.cols * 4 + 1))
         for r in range(self.rows):
@@ -87,62 +59,72 @@ class Enviroment:
                 cell_value = self.board[r, c]
                 
                 if (r, c) == self.currentStateW:
-                    # Si la posició coincideix amb l'estat actual W, mostrem el Rei
                     symbol = "K " 
-                elif cell_value == 100:
-                    # Si el valor és 100, és l'objectiu
+                elif (r, c) == self.currentStateB: # Millor comprovar coord que valor
                     symbol = "100" 
                 elif cell_value == -1:
-                    # La casella és buida (default)
                     symbol = "- "
                 else:
-                    # En cas de tenir un altre objecte (però amb la lògica actual, no hauria de passar)
                     symbol = "? " 
                 
                 row_display += f"{symbol} | " if symbol != "100" else f"{symbol}| "
             print(row_display)
             print("-" * (self.cols * 4 + 1))
         
-    def move_piece(self, new_pos):
+    def move_piece(self, action):
         """
-        Mou el rei a la nova posició si és vàlid.
-        Retorna la recompensa obtinguda.
+        Mou el rei a la nova posició basant-se en l'acció rebuda (int).
+        Retorna: (next_state, reward, done)
+        Accions esperades (basat en agent.py): 
+        0: Up, 1: Down, 2: Right, 3: Left
         """
         current_r, current_c = self.currentStateW
-        new_r, new_c = new_pos
-
-        # --- 1. Validacions ---
         
-        # A) Validació de límits del tauler
+        # 1. Definició de Deltas (Canvi de coordenades segons l'acció)
+        # Format: (delta_fila, delta_columna)
+        deltas = {
+            0: (-1, 0),  # Up
+            1: (1, 0),   # Down
+            2: (0, 1),   # Right
+            3: (0, -1)   # Left
+        }
+        
+        # Recuperem el desplaçament. Si l'acció no existeix, no ens movem (0,0)
+        dr, dc = deltas.get(action, (0, 0))
+        
+        # Calculem la proposta de nova posició
+        new_r = current_r + dr
+        new_c = current_c + dc
+        new_pos = (new_r, new_c)
+        
+        # --- 2. Validacions i Lògica de Moviment ---
+        
+        reward = self.reward # Cost per defecte (-1)
+        done = False         # Per defecte no hem acabat
+
+        # A) Validació de límits del tauler (Murs)
         if not (0 <= new_r < self.rows and 0 <= new_c < self.cols):
-            print(f"Moviment invàlid: Fora de límits {new_pos}")
-            return self.wall_penalization # Penalització forta
+            # Si surt del tauler: Penalització forta i NO es mou
+            return self.currentStateW, self.wall_penalization, done
 
-        # B) Validació de geometria del Rei (distància màxima de 1 en qualsevol eix)
-        # Chebyshev distance: max(|x1-x2|, |y1-y2|)
-        if max(abs(new_r - current_r), abs(new_c - current_c)) > 1:
-            print(f"Moviment invàlid: El Rei no pot saltar a {new_pos}")
-            return self.wall_penalization
-
-        # --- 2. Càlcul de Recompensa ---
-        
-        reward = self.reward # Cost estàndard per pas (per incentivar camins curts)
-        
+        # B) Comprovem si hem arribat a l'objectiu
         if new_pos == self.currentStateB:
-            reward = self.treasure # Recompensa final
+            reward = self.treasure
+            done = True # Episodi acabat
 
-        # --- 3. Actualització del Tauler (Swap) ---
+        # --- 3. Actualització del Tauler (Física del moviment) ---
 
-        # Recuperem l'objecte Rei de la posició actual
+        # Recuperem l'objecte Rei
         king_obj = self.board[self.currentStateW]
         
-        # Buidem la casella antiga (tornem a posar -1 o 0 segons la teva lògica de buit)
-        self.board[self.currentStateW] = self.reward
+        # Buidem la casella antiga
+        self.board[self.currentStateW] = -1 
         
-        # Posem el Rei a la nova casella
-        self.board[new_pos] = king_obj
-        
-        # Actualitzem les coordenades internes de l'agent
+        # Actualitzem coordenades internes
         self.currentStateW = new_pos
         
-        return reward
+        # Posem el Rei a la nova casella (visualització)
+        # Nota: Si és l'objectiu, tècnicament el 'mengem', però visualment posem el rei igualment
+        self.board[new_pos] = king_obj
+        
+        return self.currentStateW, reward, done

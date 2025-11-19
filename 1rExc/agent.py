@@ -1,94 +1,99 @@
 import random
-import Qtable
+from Qtable import Qtable 
 
-# Definir accions
-# entenc k ha de tenir estat
 class Agent:
-    # learning rate (quant ràpid oblidem el passat)
-    alpha = 0.1
-    # Què tant important és el futur
-    gamma = 0.90
-    # Cada quant explirem (fem coses rares, bogeries, coses que no feiem abans)
-    epsilon = 0.9
-    # Cada quant variem epsilon
-    decrease_rate=0.1
+    # Hiperparàmetres per defecte
+    alpha = 0.1          # Learning rate
+    gamma = 0.90         # Discount factor
+    epsilon = 0.9        # Exploration rate
+    decrease_rate = 0.1  # Epsilon decay (opcional per a futures millores)
 
-    actions = ('up', 'down', 'right', 'left')
-
-    qtable = Qtable(actions)
-
+    actions = (0, 1, 2, 3) # Up, Down, Right, Left
 
     def __init__(self, actions=None, learning_rate=None, future_weight=None, exploration_rate=None, decrease_rate=None):
         
-        # 1. Canviar el valor de alpha (learning_rate) si se'n proporciona un de nou
         if learning_rate is not None:
             self.alpha = learning_rate
 
-        # 2. Canviar el valor de gamma (future_weight) si se'n proporciona un de nou
         if future_weight is not None:
             self.gamma = future_weight
 
-        # 3. Canviar el valor de epsilon (exploration_rate) si se'n proporciona un de nou
         if exploration_rate is not None:
             self.epsilon = exploration_rate
-
-        # 5. Canviar el valor del decrease_rate de epsilon si se'n proporciona un de nou    
+ 
         if decrease_rate is not None:
             self.decrease_rate = decrease_rate
 
-        # 5. Canviar el valor de actions si se'n proporciona un de nou
         if actions is not None:
             self.actions = actions
             
-        # 6. Inicialitzar la Q-table amb el conjunt d'accions final
+        # Inicialitzem la Q-table (Instància de la classe Qtable)
         self.qtable = Qtable(self.actions)
 
-
-    def policy(self, state, env):
+    def think(self, state):
         """
-        Mètode que executarà l'acció. Epsilon greedy?
+        Decideix l'acció basada en l'estat actual.
+        """
+        return self.policy(state)
+
+    def policy(self, state):
+        """
+        Epsilon-Greedy Policy.
         """
         if random.random() < self.epsilon:
-            # Exploració
-            return self.explore(state, env)
+            return self.explore(state)
         else:
-            # Explotació
-            return self.max_Q(state, env)
+            return self.max_Q(state)
 
-        return "a"
-
-    def learn(self, state, env):
+    def learn(self, state, action, reward, next_state, done):
         """
-        Mètode que apendra de l'acció feta. Bellman
+        Actualització Q-Learning (Bellman Equation):
+        Q(s,a) = Q(s,a) + alpha * [R + gamma * max(Q(s',a')) - Q(s,a)]
         """
-               
-        return "b"
-    
-    def explore(self, state, env):
-        rand=random.random()
-
-        if rand < 0.25:
-            return self.actions[0]
-        elif rand < 0.5:
-            return self.actions[1]
-        elif rand < 0.75:
-            return self.actions[2]
+        # 1. Obtenim el Q-value actual
+        current_q = self.qtable.lookup(state, action)
+        
+        # 2. Calculem el max Q per al següent estat (s')
+        if done:
+            # Si hem acabat, no hi ha futur, només la recompensa final
+            target = reward
         else:
-            return self.actions[3]
-        
-    def max_Q(self, state, env):
-        
-        n = len(self.actions)
-        best_move=random.random(self.actions)
-        best_reward=float(-'inf')
+            # Busquem el valor màxim possible des del següent estat
+            max_next_q = float('-inf')
+            for a in self.actions:
+                q_val = self.qtable.lookup(next_state, a)
+                if q_val > max_next_q:
+                    max_next_q = q_val
+            
+            target = reward + (self.gamma * max_next_q)
 
-        for i in range(n):
-            evaluating_move, evaluating_reward = self.qtable.lookup(state, self.actions[i])
+        # 3. Calculem el nou valor Q amb el learning rate (alpha)
+        new_q = current_q + self.alpha * (target - current_q)
+        
+        # 4. Actualitzem la taula
+        self.qtable.update_q_value(state, action, new_q)
+
+    def explore(self, state):
+        """
+        Retorna una acció aleatòria.
+        """
+        return random.choice(self.actions)
+        
+    def max_Q(self, state):
+        """
+        Retorna la millor acció coneguda per a l'estat donat (Argmax).
+        """
+        # Inicialitzem amb un valor molt baix
+        best_reward = float('-inf')
+        
+        # Per defecte triem una a l'atzar per si totes són iguals
+        best_move = random.choice(self.actions)
+
+        for action in self.actions:
+            evaluating_reward = self.qtable.lookup(state, action)
+            
             if evaluating_reward > best_reward:
                 best_reward = evaluating_reward
-                best_move = evaluating_move
+                best_move = action
+                
         return best_move
-
-
-
-    
