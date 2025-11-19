@@ -1,9 +1,9 @@
-from agent import Agent as agent
-from enviroment import Enviroment as env
+import agent
+import enviroment
 
 def main():
     # Initialize the environment
-    environment = env.Enviroment()
+    environment = enviroment.Enviroment()
     
     # Initialize the agent
     agent_instance = agent.Agent()
@@ -16,8 +16,12 @@ def main():
         while not done:
             action = agent_instance.think(state)
             next_state, reward, done = environment.move_piece(action)
+            environment.print_board()
             agent_instance.learn(state, action, reward, next_state, done)
             state = next_state
             
     print("Simulation completed.")
+
+if __name__ == "__main__":
+    main()
     
