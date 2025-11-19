@@ -53,7 +53,7 @@ class Agent:
             return self.explore(state, env)
         else:
             # Explotació
-            return self.max_Q()
+            return self.max_Q(state, env)
 
         return "a"
 
@@ -76,9 +76,18 @@ class Agent:
         else:
             return self.actions[3]
         
-    def max_Q(self):
+    def max_Q(self, state, env):
         
-        return
+        n = len(self.actions)
+        best_move=random.random(self.actions)
+        best_reward=float(-'inf')
+
+        for i in range(n):
+            evaluating_move, evaluating_reward = self.qtable.lookup(state, self.actions[i])
+            if evaluating_reward > best_reward:
+                best_reward = evaluating_reward
+                best_move = evaluating_move
+        return best_move
 
 
 
