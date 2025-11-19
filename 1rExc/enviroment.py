@@ -8,24 +8,29 @@ class Enviroment:
     cols = 0
         
     board = []
-    # Agent
+    # coord Agent
     currentStateW = []
-    # Recompensa   
+    # coord Recompensa final  
     currentStateB = []
+    # Recompensa per moviment
+    reward = -1
+    # Bonificació final
+    treasure=100
+    # Wall penalization
+    wall_penalization = -100
     
-    def __init__(self, initState=None, rows=3, cols=4, currentStateW=(2,0), currentStateB=(2,3)):
-        self.rows = rows
-        self.cols = cols
-        
-        # 1. Inicialitzem amb dtype=object per poder guardar números I peces
-        self.board = np.full((rows, cols), -1, dtype=object)
-        
-        self.currentStateW = currentStateW
-        self.currentStateB = currentStateB
+    def __init__(self, rows=3, cols=4, currentStateW=(2,0), currentStateB=(2,3)):
 
-        # (S'ha eliminat el bucle for/append redundant i erroni)
+        if self.initState is None:
+            self.rows = rows
+            self.cols = cols
+            
+            # 1. Inicialitzem amb dtype=object per poder guardar números I peces
+            self.board = np.full((rows, cols), -1, dtype=object)
+            
+            self.currentStateW = currentStateW
+            self.currentStateB = currentStateB
 
-        if initState is None:
             # 2. Posem el valor 100 a la posició B
             self.board[self.currentStateB] = 100
             
@@ -33,8 +38,8 @@ class Enviroment:
             self.board[self.currentStateW] = piece.King(True) 
             
             self.initState = 1
-        else:
-            return
+
+
 
 
     def get_state(self):
@@ -111,20 +116,20 @@ class Enviroment:
         # A) Validació de límits del tauler
         if not (0 <= new_r < self.rows and 0 <= new_c < self.cols):
             print(f"Moviment invàlid: Fora de límits {new_pos}")
-            return -10 # Penalització forta
+            return self.wall_penalization # Penalització forta
 
         # B) Validació de geometria del Rei (distància màxima de 1 en qualsevol eix)
         # Chebyshev distance: max(|x1-x2|, |y1-y2|)
         if max(abs(new_r - current_r), abs(new_c - current_c)) > 1:
             print(f"Moviment invàlid: El Rei no pot saltar a {new_pos}")
-            return -10 
+            return self.wall_penalization
 
         # --- 2. Càlcul de Recompensa ---
         
-        reward = -1 # Cost estàndard per pas (per incentivar camins curts)
+        reward = self.reward # Cost estàndard per pas (per incentivar camins curts)
         
         if new_pos == self.currentStateB:
-            reward = 100 # Recompensa final
+            reward = self.treasure # Recompensa final
 
         # --- 3. Actualització del Tauler (Swap) ---
 
@@ -132,7 +137,7 @@ class Enviroment:
         king_obj = self.board[self.currentStateW]
         
         # Buidem la casella antiga (tornem a posar -1 o 0 segons la teva lògica de buit)
-        self.board[self.currentStateW] = -1
+        self.board[self.currentStateW] = self.reward
         
         # Posem el Rei a la nova casella
         self.board[new_pos] = king_obj
