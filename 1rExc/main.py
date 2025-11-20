@@ -14,11 +14,15 @@ def main():
     final_reward = 0
     # Run the simulation
     for episode in range(100):  # Number of episodes
+        print("########------Episode ", episode, "------########")
         environment.reset_enviroment()
         agent_instance.reduce_exploration_rate_by_decrease_rate()
         state = environment.get_state()
         done = False
         
+        if episode == 99:
+            last_path.append(state)
+
         while not done:
             action = agent_instance.think(state)
             next_state, reward, done = environment.move_piece(action)
