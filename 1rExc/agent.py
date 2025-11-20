@@ -31,10 +31,12 @@ class Agent:
         self.qtable = Qtable(self.actions)
 
     def reduce_exploration_rate_by_10_percent(self):
-        self.epsilon-=0.1
+        if self.epsilon > 0.1:
+            self.epsilon-=0.1   
 
     def reduce_exploration_rate_by_decrease_rate(self):
-        self.epsilon-=self.decrease_rate
+        if self.epsilon > 0.1:
+            self.epsilon-=self.decrease_rate
 
     def think(self, state):
         """
@@ -84,7 +86,7 @@ class Agent:
         """
         Retorna una acció aleatòria.
         """
-        if random.random() < self.decrease_rate:
+        if random.random() < self.decrease_rate and self.decrease_rate > 0.1:
             self.epsilon -= 0.05
         return random.choice(self.actions)
         
