@@ -35,13 +35,13 @@ class Enviroment:
             self.currentObs = currentObs
 
             # 2. Posem el valor 100 a la posició B
-            self.board[self.currentStateB] = 100
+            self.board[self.currentStateB] = self.treasure
             
             # 3. Posem el King a la posició W
             self.board[self.currentStateW] = piece.King(True) 
 
             # 4. Posem obstacle
-            self.board[self.currentObs] = -100
+            self.board[self.currentObs] = self.wall_penalization
 
             self.initState = 1
 
@@ -117,6 +117,11 @@ class Enviroment:
         if new_pos == self.currentStateB:
             reward = self.treasure
             done = True # Episodi acabat
+
+        # C) Validació de Obstacle
+        if (self.currentObs[0] == new_r and self.currentObs[1] == new_c):
+            # Si troba obstacle: Penalització forta i NO es mou
+            return self.currentStateW, self.wall_penalization, done
 
         # --- 3. Actualització del Tauler (Física del moviment) ---
 
