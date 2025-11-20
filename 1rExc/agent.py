@@ -30,6 +30,12 @@ class Agent:
         # Inicialitzem la Q-table (Instància de la classe Qtable)
         self.qtable = Qtable(self.actions)
 
+    def reduce_exploration_rate_by_10_percent(self):
+        self.epsilon-=0.1
+
+    def reduce_exploration_rate_by_decrease_rate(self):
+        self.epsilon-=self.decrease_rate
+
     def think(self, state):
         """
         Decideix l'acció basada en l'estat actual.

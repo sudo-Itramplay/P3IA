@@ -10,9 +10,12 @@ def main():
     
     print("########------BEGIN------########")
     environment.print_board()
+    last_path=[]
+    final_reward = 0
     # Run the simulation
     for episode in range(100):  # Number of episodes
         environment.reset_enviroment()
+        agent_instance.reduce_exploration_rate_by_decrease_rate()
         state = environment.get_state()
         done = False
         
@@ -23,8 +26,16 @@ def main():
             agent_instance.learn(state, action, reward, next_state, done)
             state = next_state
 
+            if episode == 99:
+                last_path.append(state)
+                final_reward+=reward
+
             
     print("Simulation completed.")
+    print("Final Path")
+    print(last_path)
+    print("Final Reward:")
+    print(final_reward)
 
 if __name__ == "__main__":
     main()
