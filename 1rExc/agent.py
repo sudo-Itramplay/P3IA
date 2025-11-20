@@ -3,10 +3,10 @@ from Qtable import Qtable
 
 class Agent:
     # Hiperparàmetres per defecte
-    alpha = 0.1          # Learning rate
-    gamma = 0.90         # Discount factor
-    epsilon = 0.9        # Exploration rate
-    decrease_rate = 0.1  # Epsilon decay (opcional per a futures millores)
+    alpha = 0.7          # Learning rate - Pes de la nova info sobre la vella
+    gamma = 0.90         # Discount factor - Pes recompenses futures(possibles) respecte a les conegudes i immediates
+    epsilon = 0.9        # Exploration rate - Probabilitat de fer acció aleatoria
+    decrease_rate = 0.1  # Epsilon decay (opcional per a futures millores) - Cada quant disminuim exploration rate
 
     actions = (0, 1, 2, 3) # Up, Down, Right, Left
 
@@ -78,6 +78,8 @@ class Agent:
         """
         Retorna una acció aleatòria.
         """
+        if random.random() < self.decrease_rate:
+            self.epsilon -= 0.05
         return random.choice(self.actions)
         
     def max_Q(self, state):

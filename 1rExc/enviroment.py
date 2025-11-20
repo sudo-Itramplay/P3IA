@@ -77,6 +77,11 @@ class Enviroment:
             print(row_display)
             print("-" * (self.cols * 4 + 1))
         
+    def is_finish(self):
+        if self.currentStateB == self.currentStateW[:2]:
+            return True
+        return False
+    
     def move_piece(self, action):
         """
         Mou el rei a la nova posició basant-se en l'acció rebuda (int).
