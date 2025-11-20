@@ -77,6 +77,7 @@ class Enviroment:
             print(row_display)
             print("-" * (self.cols * 4 + 1))
         
+        
     def is_finish(self):
         if self.currentStateB == self.currentStateW[:2]:
             return True
