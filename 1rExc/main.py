@@ -1,23 +1,23 @@
 import agent
-import enviroment
+import environment
 
 def main():
     # Initialize the environment
-    environment = enviroment.Enviroment()
+    env = environment.Environment()
     
     # Initialize the agent
     agent_instance = agent.Agent()
     
     print("########------BEGIN------########")
-    environment.print_board()
+    env.print_board()
     last_path=[]
     final_reward = 0
     # Run the simulation
     for episode in range(100):  # Number of episodes
         print("########------Episode ", episode, "------########")
-        environment.reset_enviroment()
+        env.reset_environment()
         agent_instance.reduce_exploration_rate_by_decrease_rate()
-        state = environment.get_state()
+        state = env.get_state()
         done = False
         
         if episode == 99:
@@ -25,8 +25,8 @@ def main():
 
         while not done:
             action = agent_instance.think(state)
-            next_state, reward, done = environment.move_piece(action)
-            environment.print_board()
+            next_state, reward, done = env.move_piece(action)
+            env.print_board()
             agent_instance.learn(state, action, reward, next_state, done)
             state = next_state
 

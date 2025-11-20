@@ -1,5 +1,5 @@
 import random
-from Qtable import Qtable 
+import numpy as np
 
 class Agent:
     # Hiperparàmetres per defecte
@@ -9,8 +9,9 @@ class Agent:
     decrease_rate = 0.1  # Epsilon decay - Quant disminuim exploration rate
 
     actions = (0, 1, 2, 3) # Up, Down, Right, Left
+    q_table= np.zeros((3, 4, len(actions)))
 
-    def __init__(self, actions=None, learning_rate=None, future_weight=None, exploration_rate=None, decrease_rate=None):
+    def __init__(self, rows=3, cols=4, actions=None, learning_rate=None, future_weight=None, exploration_rate=None, decrease_rate=None):
         
         if learning_rate is not None:
             self.alpha = learning_rate
@@ -27,8 +28,8 @@ class Agent:
         if actions is not None:
             self.actions = actions
             
-        # Inicialitzem la Q-table (Instància de la classe Qtable)
-        self.qtable = Qtable(self.actions)
+        if rows is not None and cols is not None:
+            self.q_table = np.zeros((rows, cols, len(self.actions)))
 
     def reduce_exploration_rate_by_10_percent(self):
         if self.epsilon > 0.1:
@@ -60,8 +61,10 @@ class Agent:
         Actualització Q-Learning (Bellman Equation):
         Q(s,a) = Q(s,a) + alpha * [R + gamma * max(Q(s',a')) - Q(s,a)]
         """
+        row, col = state
+        next_r, next_c = next_state
         # 1. Obtenim el Q-value actual
-        current_q = self.qtable.lookup(state, action)
+        current_q = self.q_table[row, col, action]
         
         # 2. Calculem el max Q per al següent estat (s')
         if done:
@@ -69,19 +72,15 @@ class Agent:
             target = reward
         else:
             # Busquem el valor màxim possible des del següent estat
-            max_next_q = float('-inf')
-            for a in self.actions:
-                q_val = self.qtable.lookup(next_state, a)
-                if q_val > max_next_q:
-                    max_next_q = q_val
-            
+            # Max Q per al següent estat
+            max_next_q = np.max(self.q_table[next_r, next_c])
             target = reward + (self.gamma * max_next_q)
 
         # 3. Calculem el nou valor Q amb el learning rate (alpha)
         new_q = current_q + self.alpha * (target - current_q)
         
         # 4. Actualitzem la taula
-        self.qtable.update_q_value(state, action, new_q)
+        self.q_table[row, col, action] = new_q
 
     def explore(self, state):
         """
@@ -102,7 +101,8 @@ class Agent:
         best_move = random.choice(self.actions)
 
         for action in self.actions:
-            evaluating_reward = self.qtable.lookup(state, action)
+            # Cridava a la funció lookup de la classe externa Qtable
+            evaluating_reward = self.q_table[state[0],state[1], action]
             
             if evaluating_reward > best_reward:
                 best_reward = evaluating_reward

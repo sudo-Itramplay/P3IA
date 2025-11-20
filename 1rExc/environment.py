@@ -1,7 +1,7 @@
 import numpy as np
 import piece 
 
-class Enviroment:
+class Environment:
     initState = None
     
     rows = 0
@@ -45,7 +45,7 @@ class Enviroment:
 
             self.initState = 1
 
-    def get_enviroment(self):
+    def get_environment(self):
         return self.board # Retornem el tauler o l'estat rellevant
 
     def get_state(self):
@@ -146,7 +146,7 @@ class Enviroment:
         
         return self.currentStateW, reward, done
     
-    def reset_enviroment(self, rows=3, cols=4, currentStateW=(2,0), currentStateB=(0,3), currentObs=(1,1)):
+    def reset_environment(self, rows=3, cols=4, currentStateW=(2,0), currentStateB=(0,3), currentObs=(1,1)):
         self.rows = rows
         self.cols = cols
         
