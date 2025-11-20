@@ -25,9 +25,9 @@ class Qtable:
             # Reiniciem la taula amb el nou nombre d'accions
             self.table = np.zeros((rows, cols, len(actions)))
 
-    def get_q_value(self, state, action_index):
+    def get_q_value(self, state):
         # Retorna el valor d'una cel·la concreta
-        row, col = state
+        row, col, action_index = state
         return self.table[row, col, action_index]
 
     def update_q_value(self, state, action_index, new_value):

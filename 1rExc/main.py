@@ -8,9 +8,11 @@ def main():
     # Initialize the agent
     agent_instance = agent.Agent()
     
+    print("########------BEGIN------########")
+    environment.print_board()
     # Run the simulation
     for episode in range(100):  # Number of episodes
-        state = environment.get_enviroment()
+        state = environment.get_state()
         done = False
         
         while not done:
@@ -19,6 +21,8 @@ def main():
             environment.print_board()
             agent_instance.learn(state, action, reward, next_state, done)
             state = next_state
+            if reward == 100:
+                done = True
             
     print("Simulation completed.")
 

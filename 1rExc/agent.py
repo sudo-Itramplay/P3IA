@@ -34,6 +34,7 @@ class Agent:
         """
         Decideix l'acció basada en l'estat actual.
         """
+        action = self.policy(state)
         return self.policy(state)
 
     def policy(self, state):
