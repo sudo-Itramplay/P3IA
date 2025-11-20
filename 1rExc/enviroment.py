@@ -77,7 +77,7 @@ class Enviroment:
             print(row_display)
             print("-" * (self.cols * 4 + 1))
         
-        
+
     def is_finish(self):
         if self.currentStateB == self.currentStateW[:2]:
             return True
@@ -145,3 +145,23 @@ class Enviroment:
         self.board[new_pos] = king_obj
         
         return self.currentStateW, reward, done
+    
+    def reset_enviroment(self, rows=3, cols=4, currentStateW=(2,0), currentStateB=(0,3), currentObs=(1,1)):
+        self.rows = rows
+        self.cols = cols
+        
+        # 1. Inicialitzem amb dtype=object per poder guardar números I peces
+        self.board = np.full((rows, cols), -1, dtype=object)
+        
+        self.currentStateW = currentStateW
+        self.currentStateB = currentStateB
+        self.currentObs = currentObs
+
+        # 2. Posem el valor 100 a la posició B
+        self.board[self.currentStateB] = self.treasure
+        
+        # 3. Posem el King a la posició W
+        self.board[self.currentStateW] = piece.King(True) 
+
+        # 4. Posem obstacle
+        self.board[self.currentObs] = self.wall_penalization

@@ -12,6 +12,7 @@ def main():
     environment.print_board()
     # Run the simulation
     for episode in range(100):  # Number of episodes
+        environment.reset_enviroment()
         state = environment.get_state()
         done = False
         
