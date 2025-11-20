@@ -21,7 +21,7 @@ def main():
             environment.print_board()
             agent_instance.learn(state, action, reward, next_state, done)
             state = next_state
-            if reward == 100:
+            if reward > 20:
                 done = True
             
     print("Simulation completed.")

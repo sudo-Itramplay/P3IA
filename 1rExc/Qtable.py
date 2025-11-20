@@ -35,9 +35,6 @@ class Qtable:
         row, col = state
         self.table[row, col, action_index] = new_value
 
-    def learn(self, state):
-        pass
-
     def lookup(self, state, action):
         """
         Retorna el valor Q per a un estat i una acció donats.

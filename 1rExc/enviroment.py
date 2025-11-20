@@ -12,6 +12,8 @@ class Enviroment:
     currentStateW = []
     # coord Recompensa final (Objectiu)
     currentStateB = []
+    # coord obstacle
+    currentObs = []
     # Recompensa per moviment (pas)
     reward = -1
     # Bonificació final
@@ -19,7 +21,7 @@ class Enviroment:
     # Wall penalization
     wall_penalization = -100
     
-    def __init__(self, rows=3, cols=4, currentStateW=(2,0), currentStateB=(2,3)):
+    def __init__(self, rows=3, cols=4, currentStateW=(2,0), currentStateB=(0,3), currentObs=(1,1)):
 
         if self.initState is None:
             self.rows = rows
@@ -30,13 +32,17 @@ class Enviroment:
             
             self.currentStateW = currentStateW
             self.currentStateB = currentStateB
+            self.currentObs = currentObs
 
             # 2. Posem el valor 100 a la posició B
             self.board[self.currentStateB] = 100
             
             # 3. Posem el King a la posició W
             self.board[self.currentStateW] = piece.King(True) 
-            
+
+            # 4. Posem obstacle
+            self.board[self.currentObs] = -100
+
             self.initState = 1
 
     def get_enviroment(self):
