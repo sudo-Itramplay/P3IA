@@ -6,7 +6,7 @@ class Agent:
     alpha = 0.7          # Learning rate - Pes de la nova info sobre la vella
     gamma = 0.90         # Discount factor - Pes recompenses futures(possibles) respecte a les conegudes i immediates
     epsilon = 0.9        # Exploration rate - Probabilitat de fer acció aleatoria
-    decrease_rate = 0.1  # Epsilon decay (opcional per a futures millores) - Cada quant disminuim exploration rate
+    decrease_rate = 0.1  # Epsilon decay - Quant disminuim exploration rate
 
     actions = (0, 1, 2, 3) # Up, Down, Right, Left
 
@@ -35,6 +35,7 @@ class Agent:
             self.epsilon-=0.1   
 
     def reduce_exploration_rate_by_decrease_rate(self):
+        # TODO es podria fer aleatori pq no fos tant agressiu, igual que amb el policy alhora de fer explore o maxQ
         if self.epsilon > 0.1:
             self.epsilon-=self.decrease_rate
 

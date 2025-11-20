@@ -9,11 +9,11 @@ class Enviroment:
         
     board = []
     # coord Agent (Rei Blanc)
-    currentStateW = []
+    currentStateW = ()
     # coord Recompensa final (Objectiu)
-    currentStateB = []
+    currentStateB = ()
     # coord obstacle
-    currentObs = []
+    currentObs = ()
     # Recompensa per moviment (pas)
     reward = -1
     # Bonificació final
