@@ -31,6 +31,10 @@ class Agent:
         if rows is not None and cols is not None:
             self.q_table = np.zeros((rows, cols, len(self.actions)))
 
+    # For practice
+    def getQtable(self):
+        return self.q_table
+
     def reduce_learning_rate_by_10_percent(self):
         if self.alpha > 0.1:
             self.alpha-=0.1   

@@ -45,6 +45,38 @@ class Environment:
 
             self.initState = 1
 
+    def init2(self, rows=3, cols=4,currentStateW=(2,0), currentStateB=(0,3), currentObs=(1,1)):     
+
+        if self.initState is None:
+            self.rows = rows
+            self.cols = cols
+
+            # Tauler amb números (recompenses) + peces
+            self.board = np.empty((rows, cols), dtype=object)
+
+            self.currentStateW = currentStateW
+            self.currentStateB = currentStateB
+            self.currentObs   = currentObs
+
+            # 1. Omplim amb recompensa = -distància Manhattan fins al tresor
+            goal_r, goal_c = self.currentStateB
+            for r in range(rows):
+                for c in range(cols):
+                    dist = abs(r - goal_r) + abs(c - goal_c)
+                    if dist == 0:
+                        self.board[r, c] = self.treasure   # 100 al goal
+                    else:
+                        self.board[r, c] = -dist           # -1, -2, -3, -4, -5
+
+            # 2. Posem obstacle (casella grisa)
+            self.board[self.currentObs] = self.wall_penalization
+
+            # 3. Posem el Rei a la posició W
+            self.board[self.currentStateW] = piece.King(True)
+
+            self.initState = 1
+
+
     def get_environment(self):
         return self.board # Retornem el tauler o l'estat rellevant
 

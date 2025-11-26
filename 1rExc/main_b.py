@@ -1,27 +1,21 @@
 import agent
 import environment
 
-def main():
-    # Initialize the environment
-    env = environment.Environment()
-    
-    # Initialize the agent
-    agent_instance = agent.Agent()
-    
+def training_loop(env, agent_instance):
     print("########------BEGIN------########")
     env.print_board()
     last_path=[]
+    paths=[]
     final_reward = 0
+    rewards=[]
     # Run the simulation
-    for episode in range(100):  # Number of episodes
+    for episode in range(101):  # Number of episodes
         print("########------Episode ", episode, "------########")
-        env.reset_environment()
+        env.init2()
+        env.print_board()
         agent_instance.reduce_exploration_rate_by_decrease_rate()
         state = env.get_state()
         done = False
-        
-        if episode == 99:
-            last_path.append(state)
 
         while not done:
             action = agent_instance.think(state)
@@ -30,17 +24,24 @@ def main():
             agent_instance.learn(state, action, reward, next_state, done)
             state = next_state
 
-            if episode == 99:
-                last_path.append(state)
-                final_reward+=reward
+    return paths, rewards
 
+
+
+def main():
+
+    env = environment.Environment()
+    env.init2()
+    
+    # Initialize the agent
+    agent_instance = agent.Agent()
+    paths, rewards = training_loop(env, agent_instance)
             
     print("Simulation completed.")
-    print("Final Path")
-    print(last_path)
-    print("Final Reward:")
-    print(final_reward)
+
+
 
 if __name__ == "__main__":
     main()
+
     
