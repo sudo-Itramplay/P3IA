@@ -26,7 +26,8 @@ def training_loop(env, agent_instance):
 
         if episode%25==0 or episode == 100:
             if episode != 50:
-                Qtables.append(agent_instance.getQtable())
+                # store a copy so later training updates don't mutate the stored snapshot
+                Qtables.append(agent_instance.getQtable().copy())
 
     return paths, rewards
 
