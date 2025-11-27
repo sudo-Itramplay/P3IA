@@ -98,7 +98,7 @@ class Environment:
                 
                 if (r, c) == self.currentStateW:
                     symbol = "K " 
-                elif (r, c) == self.currentStateB: # Millor comprovar coord que valor
+                elif (r, c) == self.currentStateB: #Millor comprovar coord que valor
                     symbol = "100" 
                 elif cell_value == -1:
                     symbol = "- "
@@ -178,22 +178,37 @@ class Environment:
         
         return self.currentStateW, reward, done
     
-    def reset_environment(self, rows=3, cols=4, currentStateW=(2,0), currentStateB=(0,3), currentObs=(1,1)):
+    def reset_environment(self, rows=3, cols=4, currentStateW=(2,0), currentStateB=(0,3), currentObs=(1,1), mode='default'):
+        """
+        Reset the environment. mode='default' keeps the original -1 fill.
+        mode='init2' will initialize the board using the Manhattan-shaped values from `init2()`.
+        """
+        # If caller requested the init2 shaped initialization, reuse init2()
+        if mode == 'init2':
+            # init2 only runs when self.initState is None, so temporarily clear it
+            prev = self.initState
+            self.initState = None
+            self.init2(rows=rows, cols=cols, currentStateW=currentStateW, currentStateB=currentStateB, currentObs=currentObs)
+            # restore initState flag
+            self.initState = 1 if prev is None else prev
+            return
+
+        # Default behaviour: simple -1 fill and place special cells
         self.rows = rows
         self.cols = cols
-        
+
         # 1. Inicialitzem amb dtype=object per poder guardar números I peces
         self.board = np.full((rows, cols), -1, dtype=object)
-        
+
         self.currentStateW = currentStateW
         self.currentStateB = currentStateB
         self.currentObs = currentObs
 
         # 2. Posem el valor 100 a la posició B
         self.board[self.currentStateB] = self.treasure
-        
+
         # 3. Posem el King a la posició W
-        self.board[self.currentStateW] = piece.King(True) 
+        self.board[self.currentStateW] = piece.King(True)
 
         # 4. Posem obstacle
         self.board[self.currentObs] = self.wall_penalization
