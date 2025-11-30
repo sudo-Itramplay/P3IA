@@ -42,13 +42,14 @@ def check_convergence( rewards, window=20):
     Més alt == millor
     """
     if len(rewards) == 0:
-        return 0.0
+        return 0.0, -1
     iterations = -1
     window = min(window, len(rewards))
     last_rewards = rewards[-window:]
     avg_last = sum(last_rewards) / window
     for i in range(len(rewards)):
-        if i > 25 and i < len(rewards)-1 and rewards[i-1] == rewards[i] == rewards[i+1]:
+        # No minimum-iteration threshold: detect plateau (three equal consecutive rewards)
+        if i < len(rewards)-1 and rewards[i-1] == rewards[i] == rewards[i+1]:
             iterations = i
             break
     return avg_last, iterations

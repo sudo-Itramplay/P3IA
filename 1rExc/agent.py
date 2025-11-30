@@ -4,9 +4,11 @@ import numpy as np
 class Agent:
     # Hiperparàmetres per defecte
     alpha = 0.7          # Learning rate - Pes de la nova info sobre la vella
-    gamma = 0.9          # Discount factor - Pes recompenses futures(possibles) respecte a les conegudes i immediates
+    #gamma = 0.9          # Discount factor - Pes recompenses futures(possibles) respecte a les conegudes i immediates
+    gamma = 0.99
     epsilon = 0.9        # Exploration rate - Probabilitat de fer acció aleatoria
-    decrease_rate = 0.1  # Epsilon decay - Quant disminuim exploration rate
+    #Le inrementant de 0.1 a 0.5 per intentar tenir una convergencia molt mes rapida en el cas de lexercici b tmb hi ha una maner que seria eliminant la partprobabilistica de l'expplore
+    decrease_rate = 0.5  # Epsilon decay - Quant disminuim exploration rate
 
     actions = (0, 1, 2, 3) # Up, Down, Right, Left
     q_table= np.zeros((3, 4, len(actions)))
