@@ -9,17 +9,17 @@ class DrunkenEnvironment:
     cols = 0
         
     board = []
-    # coord Agent (Rei Blanc)
+    #coord Agent (White king)
     currentStateW = ()
-    # coord Recompensa final (Objectiu)
+    #coord final reward (Goal)
     currentStateB = ()
-    # coord obstacle
+    #coord obstacle
     currentObs = ()
-    # Recompensa per moviment (pas)
+    #general penalty per movement
     reward = -1
-    # Bonificació final
+    #Final reward
     treasure = 100
-    # Wall penalization
+    #Wall penalization
     wall_penalization = -100
     
     def __init__(self, rows=3, cols=4, currentStateW=(2,0), currentStateB=(0,3), currentObs=(1,1)):
@@ -27,55 +27,42 @@ class DrunkenEnvironment:
         if self.initState is None:
             self.rows = rows
             self.cols = cols
-            
-            # 1. Inicialitzem amb dtype=object per poder guardar números I peces
+
             self.board = np.full((rows, cols), -1, dtype=object)
             
             self.currentStateW = currentStateW
             self.currentStateB = currentStateB
             self.currentObs = currentObs
-
-            # 2. Posem el valor 100 a la posició B
+            #Inicialzation fo the special postiions n the enviroemnt
             self.board[self.currentStateB] = self.treasure
-            
-            # 3. Posem el King a la posició W
             self.board[self.currentStateW] = piece.King(True) 
-
-            # 4. Posem obstacle
             self.board[self.currentObs] = self.wall_penalization
-
             self.initState = 1
 
     def init2(self, rows=3, cols=4,currentStateW=(2,0), currentStateB=(0,3), currentObs=(1,1)): 
-        # This method uses the Manhattan-distance reward structure (for P1.b)
-
+        #Different incializaiton for the 1.b exercise, with special and different penalties
         if self.initState is None:
             self.rows = rows
             self.cols = cols
 
-            # Tauler amb números (recompenses) + peces
             self.board = np.empty((rows, cols), dtype=object)
 
             self.currentStateW = currentStateW
             self.currentStateB = currentStateB
             self.currentObs   = currentObs
 
-            # 1. Omplim amb recompensa = -distància Manhattan fins al tresor
+            #The distributioon has a logic
             goal_r, goal_c = self.currentStateB
             for r in range(rows):
                 for c in range(cols):
                     dist = abs(r - goal_r) + abs(c - goal_c)
                     if dist == 0:
-                        self.board[r, c] = self.treasure   # 100 al goal
+                        self.board[r, c] = self.treasure #goal
                     else:
-                        self.board[r, c] = -dist          # -1, -2, -3, -4, -5
+                        self.board[r, c] = -dist#distribution of penalties
 
-            # 2. Posem obstacle (casella grisa)
             self.board[self.currentObs] = self.wall_penalization
-
-            # 3. Posem el Rei a la posició W
             self.board[self.currentStateW] = piece.King(True)
-
             self.initState = 1
 
 
@@ -83,15 +70,9 @@ class DrunkenEnvironment:
         return self.board 
 
     def get_state(self):
-        """
-        Retorna la posició actual de l'agent (Rei Blanc).
-        """
         return self.currentStateW
 
     def print_board(self):
-        """
-        Mostra el tauler de joc de forma visual.
-        """
         print("-" * (self.cols * 4 + 1))
         for r in range(self.rows):
             row_display = "| "
@@ -100,7 +81,7 @@ class DrunkenEnvironment:
                 
                 if (r, c) == self.currentStateW:
                     symbol = "K " 
-                elif (r, c) == self.currentStateB: #Millor comprovar coord que valor
+                elif (r, c) == self.currentStateB:
                     symbol = "100" 
                 elif cell_value == -1:
                     symbol = "- "
@@ -119,12 +100,9 @@ class DrunkenEnvironment:
     
     def move_piece(self, action):
         """
-        Mou el rei a la nova posició basant-se en l'acció rebuda (int).
-        It now includes stochasticity to simulate a "drunken sailor" effect.
-        
-        Retorna: (next_state, reward, done)
-        Accions esperades (basat en agent.py): 
-        0: Up, 1: Down, 2: Right, 3: Left
+        Moves the piece to the acton recieved form the agent
+        +
+        a drunken sailor proability of deviating from intended action, 1%|99%
         """
         current_r, current_c = self.currentStateW
         
@@ -132,60 +110,62 @@ class DrunkenEnvironment:
         intended_action = action
         possible_actions = [0, 1, 2, 3]
         
-        if random.random() < 0.01: # 1% chance of being drunk
-            # Find all other possible directions (3 directions)
+        if random.random() < 0.01: #1% chance of being drunk
+            #look for the ohter possible actions, excluding the intended one
             other_actions = [a for a in possible_actions if a != intended_action]
-            
-            # Sailor takes a random action from the unintended directions
+            #Sailor takes a random action from the unintended directions
             if other_actions:
                 actual_action = random.choice(other_actions)
             else:
-                actual_action = intended_action # Fallback if only one move is possible
-        else: # 99% chance of success
+                actual_action = intended_action
+        else: #99% chance of success
             actual_action = intended_action
         #End of the drunken sailor logic
 
-        # 1. Definició de Deltas (Canvi de coordenades segons l'acció)
-        # We use the actual_action determined by the stochastic logic
         deltas = {
-            0: (-1, 0),  # Up
-            1: (1, 0),   # Down
-            2: (0, 1),   # Right
-            3: (0, -1)   # Left
+            0: (-1, 0),  #Up
+            1: (1, 0),   #Down
+            2: (0, 1),   #Right
+            3: (0, -1)   #Left
         }
-        
-        # Recuperem el desplaçament. Si l'acció no existeix, no ens movem (0,0)
-        dr, dc = deltas.get(actual_action, (0, 0))
-        
-        # Calculem la proposta de nova posició
-        new_r = current_r + dr
-        new_c = current_c + dc
+
+        #intented action and the actual adction taken
+        idr, idc = deltas.get(intended_action, (0, 0))
+        adr, adc = deltas.get(actual_action, (0, 0))
+        #idr is intened 
+        #adc is actual
+        intended_pos = (current_r + idr, current_c + idc)
+        new_r = current_r + adr
+        new_c = current_c + adc
         new_pos = (new_r, new_c)
-        
-        # --- 2. Validacions i Lògica de Moviment ---
-        
-        reward = self.reward # Cost per defecte (-1 or Manhattan distance penalty)
+
+        #DEBUGGING Report if drunken deviation occurred
+        #In case the executed action has been different from the intended one
+        if actual_action != intended_action:
+            action_names = {0: 'Up', 1: 'Down', 2: 'Right', 3: 'Left'}
+            try:
+                intended_name = action_names[intended_action]
+                actual_name = action_names[actual_action]
+            except Exception:
+                intended_name = str(intended_action)
+                actual_name = str(actual_action)
+            print(f"THE AGENT IS SO DRUNK: he wanted to go {intended_name} from {self.currentStateW} to {intended_pos}, "
+                  f"but fell to the {actual_name} to {new_pos}.")
+               
+        reward = self.reward
         done = False        
 
-        # A) Validació de límits del tauler (Murs)
         if not (0 <= new_r < self.rows and 0 <= new_c < self.cols):
-            # If hits a wall, return to the current position with wall penalization
             return self.currentStateW, self.wall_penalization, done
 
-        # B) Comprovem si hem arribat a l'objectiu
+        #has the agent reached the goal?
         if new_pos == self.currentStateB:
-            # We must fetch the actual reward value from the board, 
-            # as it could be 100 or -dist (if init2 was used)
-            # Since currentStateB is always 100 (treasure) in both init and init2:
+            #as it could be 100 or -dist
             reward = self.treasure
-            done = True # Episodi acabat
-
-        # C) Validació de Obstacle
+            done = True
+        #has the agent hit the obstacle?
         if new_pos == self.currentObs:
-            # If hits obstacle, return to the current position with obstacle penalization
             return self.currentStateW, self.wall_penalization, done
-        
-        # --- 3. Actualització del Tauler (Física del moviment) ---
         
         # IMPORTANT: If the new position is NOT the goal/obstacle/wall, 
         # the reward is the value stored in the board (e.g., -1 or -3, if init2 was used)
@@ -197,35 +177,15 @@ class DrunkenEnvironment:
 
         # Recuperem l'objecte Rei
         king_obj = self.board[self.currentStateW]
-        
-        # Buidem la casella antiga (set it back to its original reward value)
-        # We need to know what value to restore: -1, -2, -3, etc.
-        # This requires storing the original cell value before the King moves, 
-        # but for simplicity in this grid world, we'll rely on the reset method
-        
-        # For the purpose of tracking the King's position, simply move it:
-        self.board[self.currentStateW] = reward # Restore the original reward of the *old* cell (This might be wrong if you are using pieces)
-        
-        # Since the board holds pieces OR rewards, we must rely on the reset.
-        # For simplicity, we assume the old cell is reset to its original step penalty *before* King was there.
-        # A simpler way is to just keep track of the King's position without modifying the board object values.
-        
-        # We will keep your original board update logic:
-        # 1. Buidem la casella antiga:
-        #    This is risky as it removes the reward value. Let's assume you handle the board state in a way
-        #    where the Q-learning loop only cares about the coordinates, not the object in the board cell.
-        self.board[self.currentStateW] = -1 # Assuming -1 or other penalty is restored for the empty old cell
-        
-        # 2. Actualitzem coordenades internes
+        self.board[self.currentStateW] = reward
+        self.board[self.currentStateW] = -1 
         self.currentStateW = new_pos
-        
-        # 3. Posem el Rei a la nova casella (visualització)
         self.board[new_pos] = king_obj
         
         return self.currentStateW, reward, done
     
     def reset_environment(self, rows=3, cols=4, currentStateW=(2,0), currentStateB=(0,3), currentObs=(1,1), mode='default'):
-        # This is fine, it just re-initializes the board
+        #This is fine, it just re-initializes the board
         if mode == 'init2':
             prev = self.initState
             self.initState = None
