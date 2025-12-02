@@ -10,6 +10,8 @@ import math
 
 import chess
 import board
+import agent
+import environment as env
 import numpy as np
 import sys
 import queue
@@ -133,12 +135,14 @@ class Aichess():
         self.listVisitedStates = []
         self.listVisitedSituations = []
         self.pathToTarget = []
-        self.depthMax = 8;
+        self.depthMax = 8
         # Dictionary to reconstruct the visited path
         self.dictPath = {}
         # Prepare a dictionary to control the visited state and at which
         # depth they were found for DepthFirstSearchOptimized
         self.dictVisitedStates = {}
+        self.ai = agent.Agent()       # Assumint que arregles el constructor d'Agent
+        self.env = env.Environment()  # Assumint que arregles el constructor d'Environment
 
     def copyState(self, state):
         
@@ -676,24 +680,6 @@ class Aichess():
         return True, next_node
 
 
-    """
-    Comprovació de draws i comprovació de visited states
-    Mirar que si hi ha 2 reis nomes deixar 3 moviments
-    """
-    '''
-    def is_Draw(self, current_state):
-        """
-        Fem la comprovació de si tenim empat en la partida
-        """
-        if len(current_state) == 2:
-            return True
-        
-        if self.isVisited(current_state):
-            return True
-        else:
-            self.listVisitedStates.append(current_state)
-        return False
-    '''
     def is_Draw(self, current_state):
         """
         Must see if there is draw in the game.
@@ -1277,63 +1263,103 @@ class Aichess():
                 print("La partida ha acabat en empat (taules).")
         return
 
-if __name__ == "__main__":
-    # if len(sys.argv) < 2:
-    #     sys.exit(usage())
 
+
+    def translate_action(self, action, currentState):
+        """
+        Calcula el nou estat basat en l'acció donada.
+        Actions: 0: Up, 1: Down, 2: Right, 3: Left
+        State: (row, column, piece)
+        """
+        row, col, piece = currentState
+
+        # Coordenades de matriu: (0,0) és Top-Left
+        if action == 0:   # Up
+            row -= 1
+        elif action == 1: # Down
+            row += 1
+        elif action == 2: # Right
+            col += 1
+        elif action == 3: # Left
+            col -= 1
+        
+        # Retornem la tupla actualitzada
+        return (row, col, piece)
+
+
+
+
+    def aiGame(self):        
+        currentState = self.getCurrentState()    
+        color = True
+        self.newBoardSim(currentState)
+
+        #main game loop
+        while (not self.is_Draw(currentState)) and (not self.isBlackInCheckMate(currentState) and not self.isWhiteInCheckMate(currentState)):
+
+
+            if color:
+                #white move minimax
+                env.reset_environment()
+                self.ai.reduce_exploration_rate_by_decrease_rate()
+                state = self.env.get_state()
+                done = False
+
+        while not done:
+            # Fem acció
+            action = self.ai.think(state)
+
+            # Movem a env i chess
+            next_state = self.translate_action(action, currentState)
+
+            #CHESS
+            moviment = self.getMovement(self.getCurrentSimState())
+            if moviment[0] is None or moviment[1] is None:
+                print("Error a 'getMovement', no s'ha trobat el moviment. Avortant.")
+                print("Estat actual:", currentState)
+                break 
+            
+            #execute the movement
+            from_pos = moviment[0][0:2]
+            to_pos = moviment[1][0:2]
+            self.chess.moveSim(from_pos, to_pos)      
+
+            #env
+            next_state, reward, done = env.move_piece(action)
+            self.ai.learn(state, action, reward, next_state, done)
+            state = next_state
+
+            #update state and turn
+            currentState = self.getCurrentSimState()
+            color = not color
+
+        if self.isBlackInCheckMate(currentState):
+            print("Escac i mat! Guanyen les blanques.")
+        elif self.isWhiteInCheckMate(currentState):
+            print("Escac i mat! Guanyen les negres.")
+        else:
+            print("Partida acabada (sense escac i mat).")
+            if self.is_Draw(currentState):
+                print("La partida ha acabat en empat (taules).")
+        return
+
+
+
+
+if __name__ == "__main__":
     # Initialize an empty 8x8 chess board
     TA = np.zeros((8, 8))
 
 
     # Load initial positions of the pieces
     TA = np.zeros((8, 8))
-    TA[7][0] = 2   
-    TA[7][5] = 6   
-    TA[0][7] = 8   
-    TA[0][5] = 12  
-    #EXECUTIONS OF ALL THE METHODS
-    print("---------------------------------------------------------------------------")
-    print("##########################   MINIMAX   ####################################")
-    print("---------------------------------------------------------------------------")
-    print("stating AI chess... ")
+    TA[7][3] = 6     
+    TA[0][4] = 12  
     aichess = Aichess(TA, True)
     print("printing board")
     aichess.chess.boardSim.print_board()
-    aichess.minimaxGame(4,4)
-    
-    print("---------------------------------------------------------------------------")
-    print("##########################   ALPHA-BETA  #################################")
-    print("---------------------------------------------------------------------------")
-    print("stating AI chess (alpha-beta)... ")
-    aichess = Aichess(TA, True)
-    aichess.newBoardSim(aichess.getCurrentState())
-    aichess.alphaBetaPoda(5,5)
-    
-    print("---------------------------------------------------------------------------")
-    print("##### Minimax - Whites  &&  alpha-beta - Blacks ###########################")
-    print("---------------------------------------------------------------------------")
-    print("stating AI chess... ")
-    aichess = Aichess(TA, True)
-    print("printing board")
-    aichess.chess.boardSim.print_board()
-    aichess.alfa_black_minmax_white(4,4)
 
-
-    print("---------------------------------------------------------------------------")
-    print("##########################  minimaxVSalphabeta ############################")
-    print("---------------------------------------------------------------------------")
-    print("stating AI chess (alpha-beta)... ")
-    aichess = Aichess(TA, True)
-    aichess.newBoardSim(aichess.getCurrentState())
-    aichess.minimaxVSalphabeta(5,5)
+    for i in range(1000):
+        aichess.aiGame()
     
-    print("---------------------------------------------------------------------------")
-    print("##########################   EXPECTIMAX   ####################################")
-    print("---------------------------------------------------------------------------")
-    print("stating AI chess... ")
-    aichess = Aichess(TA, True)
-    currentState = aichess.getCurrentState()
-    aichess.newBoardSim(currentState)
-    print("printing board")
-    aichess.expectimax(2,2)
     
