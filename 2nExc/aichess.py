@@ -457,7 +457,7 @@ class Aichess():
     -----------------------------------------------------------------------------------------------------------
     """   
 
-    # Aquest mètode ha d'estar aquí pq és necessari saber si està o no en chackmate per donar-la
+    # Aquest mètode ha d'estar aquí pq és necessari saber si està o no en chackmate per donar-las
     def heuristica(self, currentState, color):
         # This method calculates the heuristic value for the current state.
         # The value is initially computed from White's perspective.
