@@ -12,8 +12,6 @@ class Environment:
     currentStateW = ()
     # coord Recompensa final (Objectiu)
     currentStateB = ()
-    # coord obstacle
-    currentObs = ()
     # Recompensa per moviment (pas)
     reward = -1
     # Bonificació final
@@ -21,7 +19,7 @@ class Environment:
     # Wall penalization
     wall_penalization = -100
     
-    def __init__(self, rows=3, cols=4, currentStateW=(2,0), currentStateB=(0,3), currentObs=(1,1)):
+    def __init__(self, rows=8, cols=8, currentStateW=(7,3), currentStateB=(0,4)):
 
         if self.initState is None:
             self.rows = rows
@@ -32,7 +30,6 @@ class Environment:
             
             self.currentStateW = currentStateW
             self.currentStateB = currentStateB
-            self.currentObs = currentObs
 
             # 2. Posem el valor 100 a la posició B
             self.board[self.currentStateB] = self.treasure
@@ -40,42 +37,7 @@ class Environment:
             # 3. Posem el King a la posició W
             self.board[self.currentStateW] = piece.King(True) 
 
-            # 4. Posem obstacle
-            self.board[self.currentObs] = self.wall_penalization
-
             self.initState = 1
-
-    def init2(self, rows=3, cols=4,currentStateW=(2,0), currentStateB=(0,3), currentObs=(1,1)):     
-
-        if self.initState is None:
-            self.rows = rows
-            self.cols = cols
-
-            # Tauler amb números (recompenses) + peces
-            self.board = np.empty((rows, cols), dtype=object)
-
-            self.currentStateW = currentStateW
-            self.currentStateB = currentStateB
-            self.currentObs   = currentObs
-
-            # 1. Omplim amb recompensa = -distància Manhattan fins al tresor
-            goal_r, goal_c = self.currentStateB
-            for r in range(rows):
-                for c in range(cols):
-                    dist = abs(r - goal_r) + abs(c - goal_c)
-                    if dist == 0:
-                        self.board[r, c] = self.treasure   # 100 al goal
-                    else:
-                        self.board[r, c] = -dist           # -1, -2, -3, -4, -5
-
-            # 2. Posem obstacle (casella grisa)
-            self.board[self.currentObs] = self.wall_penalization
-
-            # 3. Posem el Rei a la posició W
-            self.board[self.currentStateW] = piece.King(True)
-
-            self.initState = 1
-
 
     def get_environment(self):
         return self.board # Retornem el tauler o l'estat rellevant
@@ -156,11 +118,6 @@ class Environment:
             reward = self.treasure
             done = True # Episodi acabat
 
-        # C) Validació de Obstacle
-        if (self.currentObs[0] == new_r and self.currentObs[1] == new_c):
-            # Si troba obstacle: Penalització forta i NO es mou
-            return self.currentStateW, self.wall_penalization, done
-
         # --- 3. Actualització del Tauler (Física del moviment) ---
 
         # Recuperem l'objecte Rei
@@ -178,21 +135,10 @@ class Environment:
         
         return self.currentStateW, reward, done
     
-    def reset_environment(self, rows=3, cols=4, currentStateW=(2,0), currentStateB=(0,3), currentObs=(1,1), mode='default'):
+    def reset_environment(self, rows=8, cols=8, currentStateW=(7,3), currentStateB=(0,4)):
         """
-        Reset the environment. mode='default' keeps the original -1 fill.
-        mode='init2' will initialize the board using the Manhattan-shaped values from `init2()`.
+        Reset the environment.
         """
-        # If caller requested the init2 shaped initialization, reuse init2()
-        if mode == 'init2':
-            # init2 only runs when self.initState is None, so temporarily clear it
-            prev = self.initState
-            self.initState = None
-            self.init2(rows=rows, cols=cols, currentStateW=currentStateW, currentStateB=currentStateB, currentObs=currentObs)
-            # restore initState flag
-            self.initState = 1 if prev is None else prev
-            return
-
         # Default behaviour: simple -1 fill and place special cells
         self.rows = rows
         self.cols = cols
@@ -202,7 +148,6 @@ class Environment:
 
         self.currentStateW = currentStateW
         self.currentStateB = currentStateB
-        self.currentObs = currentObs
 
         # 2. Posem el valor 100 a la posició B
         self.board[self.currentStateB] = self.treasure
@@ -210,5 +155,3 @@ class Environment:
         # 3. Posem el King a la posició W
         self.board[self.currentStateW] = piece.King(True)
 
-        # 4. Posem obstacle
-        self.board[self.currentObs] = self.wall_penalization

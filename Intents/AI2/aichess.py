@@ -8,10 +8,10 @@ Created on Thu Sep  8 11:22:03 2022
 import copy
 import math
 
-import chess
-import board
+import AI_BASE_P2.chess as chess
+import AI_BASE_P2.board as board
 import agent
-import QChessEnviroment as env
+import environment as env
 import numpy as np
 import sys
 import queue
@@ -1289,77 +1289,82 @@ class Aichess():
 
 
 
-    def aiGame(self):        
-        currentState = self.getCurrentState()    
-        color = True
+    def aiGame(self):
+        """
+        Executa un episodi de Q-Learning (Reinforcement Learning).
+        """
+        # 1. Obtenim l'estat actual del tauler d'escacs
+        currentState = self.getCurrentState()   
+        print("Estat inicial de l'episodi:", currentState)
+        
+        # Sincronitzem el tauler de simulació
         self.newBoardSim(currentState)
+        
+        # 2. Busquem on és el Rei Blanc (ID 6) en l'estat actual
+        wk_state = self.getPieceState(currentState, 6)
+        if wk_state:
+            # Extraiem fila i columna (els dos primers elements)
+            start_pos = (wk_state[0], wk_state[1])
+        else:
+            # Fallback per seguretat si no es troba (no hauria de passar)
+            start_pos = (7, 3)
 
-        #main game loop
-        while (not self.is_Draw(currentState)) and (not self.isBlackInCheckMate(currentState) and not self.isWhiteInCheckMate(currentState)):
+        # 3. Reiniciem l'entorn RL passant la posició CORRECTA
+        self.env.reset_environment(currentStateW=start_pos) 
+        
+        # Reduïm exploració
+        self.ai.reduce_exploration_rate_by_decrease_rate()
+        
+        # Estat inicial per a l'algorisme
+        state = self.env.get_state()
+        done = False
 
-
-            if color:
-                #white move minimax
-                env.reset_environment()
-                self.ai.reduce_exploration_rate_by_decrease_rate()
-                state = self.env.get_state()
-                done = False
-
+        # Bucle principal de l'episodi RL
         while not done:
-            # Fem acció
+            # a) L'agent decideix acció
             action = self.ai.think(state)
 
-            # Movem a env i chess
-            next_state = self.translate_action(action, currentState)
+            # b) Calculem on aniria la peça al tauler d'escacs
+            next_piece_state = self.translate_action(action, wk_state)
 
-            #CHESS
-            moviment = self.getMovement(self.getCurrentSimState())
-            if moviment[0] is None or moviment[1] is None:
-                print("Error a 'getMovement', no s'ha trobat el moviment. Avortant.")
-                print("Estat actual:", currentState)
-                break 
+            # c) Movem al tauler d'escacs (Visualització i lògica interna)
+            from_pos = (wk_state[0], wk_state[1])
+            to_pos = (next_piece_state[0], next_piece_state[1])
             
-            #execute the movement
-            from_pos = moviment[0][0:2]
-            to_pos = moviment[1][0:2]
-            self.chess.moveSim(from_pos, to_pos)      
+            # Fem el moviment simulat
+            # Nota: moveSim espera coordenades, no l'estat sencer
+            self.chess.moveSim(from_pos, to_pos)
 
-            #env
-            next_state, reward, done = env.move_piece(action)
-            self.ai.learn(state, action, reward, next_state, done)
-            state = next_state
+            # d) Movem a l'entorn RL (Lògica matemàtica i recompenses)
+            next_state_env, reward, done = self.env.move_piece(action)
+            
+            # e) L'agent aprèn
+            self.ai.learn(state, action, reward, next_state_env, done)
 
-            #update state and turn
-            currentState = self.getCurrentSimState()
-            color = not color
+            # f) Actualitzem estats per la següent iteració
+            state = next_state_env
+            
+            # Actualitzem l'objecte peça del rei per al següent bucle
+            wk_piece = [next_state_env[0], next_state_env[1], wk_state[2]]
 
-        if self.isBlackInCheckMate(currentState):
-            print("Escac i mat! Guanyen les blanques.")
-        elif self.isWhiteInCheckMate(currentState):
-            print("Escac i mat! Guanyen les negres.")
-        else:
-            print("Partida acabada (sense escac i mat).")
-            if self.is_Draw(currentState):
-                print("La partida ha acabat en empat (taules).")
+        print("Episodi finalitzat.")
         return
-
-
-
 
 if __name__ == "__main__":
     # Initialize an empty 8x8 chess board
     TA = np.zeros((8, 8))
 
-
     # Load initial positions of the pieces
-    TA = np.zeros((8, 8))
-    TA[7][3] = 6     
-    TA[0][4] = 12  
+    TA[7][3] = 6    # Rei Blanc
+    TA[0][4] = 12   # Objectiu (simulat com Rei Negre o posició fixa)
+    
     aichess = Aichess(TA, True)
-    print("printing board")
+    print("Printing initial board")
     aichess.chess.boardSim.print_board()
 
+    # Executem 1000 episodis d'entrenament
     for i in range(1000):
+        print(f"--- Episodi {i} ---")
         aichess.aiGame()
     
     

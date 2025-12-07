@@ -1,6 +1,6 @@
 import numpy as np
 import agent
-import aichess
+import aichess as aichess
 import auxiliary_P3 as p3
 from copy import deepcopy
 

@@ -1,4 +1,4 @@
-import piece
+import piece as piece
 import numpy as np
 
 

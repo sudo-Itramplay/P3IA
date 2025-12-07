@@ -1,7 +1,7 @@
 import numpy as np
-import AI_BASE_P2.piece as piece 
+import piece as piece 
 
-class Environment:
+class Board:
     initState = None
     
     rows = 0
@@ -75,6 +75,53 @@ class Environment:
             self.board[self.currentStateW] = piece.King(True)
 
             self.initState = 1
+
+    """
+    -----------------------------------------------------------------------------------------------------------
+    ###########################################################################################################
+    ###########################################################################################################
+    ------------------------------------ <TODO> -----------------------------------------------------------------
+    ###########################################################################################################
+    ###########################################################################################################
+    -----------------------------------------------------------------------------------------------------------
+    """
+    def getCurrentState(self):
+        listStates = []
+        for i in self.chess.board.currentStateW:
+            listStates.append(i)
+        for j in self.chess.board.currentStateB:
+            listStates.append(j)
+        return listStates
+    
+
+
+    def getWhiteState(self, currentState):
+        whiteState = []
+        wkState = self.getPieceState(currentState, 6)
+        whiteState.append(wkState)
+        wrState = self.getPieceState(currentState, 2)
+        if wrState != None:
+            whiteState.append(wrState)
+        return whiteState
+
+    def getBlackState(self, currentState):
+        blackState = []
+        bkState = self.getPieceState(currentState, 12)
+        blackState.append(bkState)
+        brState = self.getPieceState(currentState, 8)
+        if brState != None:
+            blackState.append(brState)
+        return blackState
+    """
+    -----------------------------------------------------------------------------------------------------------
+    ###########################################################################################################
+    ###########################################################################################################
+    ------------------------------------ <\TODO> -----------------------------------------------------------------
+    ###########################################################################################################
+    ###########################################################################################################
+    -----------------------------------------------------------------------------------------------------------
+    """
+
 
 
     def get_environment(self):

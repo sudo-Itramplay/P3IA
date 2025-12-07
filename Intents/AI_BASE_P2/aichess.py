@@ -8,12 +8,12 @@ Created on Thu Sep  8 11:22:03 2022
 import copy
 import math
 
-import chess
-import board
+import AI_BASE_P2.chess as chess
+import AI_BASE_P2.board as board
 import numpy as np
 import sys
 import queue
-import auxiliary_P3 as p3
+import AI_BASE_P2.auxiliary_P3 as p3
 from typing import List
 
 RawStateType = List[List[List[int]]]
@@ -134,7 +134,7 @@ class Aichess():
         self.listVisitedStates = []
         self.listVisitedSituations = []
         self.pathToTarget = []
-        self.depthMax = 8;
+        self.depthMax = 8
         # Dictionary to reconstruct the visited path
         self.dictPath = {}
         # Prepare a dictionary to control the visited state and at which

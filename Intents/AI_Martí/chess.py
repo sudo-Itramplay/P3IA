@@ -1,5 +1,5 @@
-import board
-import piece
+import board as board
+import piece as piece
 
 import numpy as np
 

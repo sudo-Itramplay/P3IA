@@ -1,4 +1,4 @@
-import piece
+import AI_BASE_P2.piece as piece
 import numpy as np
 
 

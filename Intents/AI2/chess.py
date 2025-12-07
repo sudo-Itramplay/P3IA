@@ -1,5 +1,5 @@
-import board
-import piece
+import AI_BASE_P2.board as board
+import AI_BASE_P2.piece as piece
 
 import numpy as np
 
