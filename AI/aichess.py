@@ -11,7 +11,7 @@ import math
 import chess
 import board
 import agent
-import environment as env
+import QChessEnviroment as env
 import numpy as np
 import sys
 import queue

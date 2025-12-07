@@ -4,14 +4,12 @@ import numpy as np
 class Agent:
     # Hiperparàmetres per defecte
     alpha = 0.7          # Learning rate - Pes de la nova info sobre la vella
-    #gamma = 0.9          # Discount factor - Pes recompenses futures(possibles) respecte a les conegudes i immediates
     gamma = 0.99
     epsilon = 0.9        # Exploration rate - Probabilitat de fer acció aleatoria
-    #Le inrementant de 0.1 a 0.5 per intentar tenir una convergencia molt mes rapida en el cas de lexercici b tmb hi ha una maner que seria eliminant la partprobabilistica de l'expplore
     decrease_rate = 0.5  # Epsilon decay - Quant disminuim exploration rate
 
-    actions = (0, 1, 2, 3) # Up, Down, Right, Left
-    q_table= np.zeros((8, 8, len(actions)))
+    actions = (0, 1, 2, 3)
+    q_table= {} #We had to implement a dictianry for the Qtable, the states of chess are way more complex than indexes of a matrix
 
     def __init__(self, rows=3, cols=4, actions=None, learning_rate=None, future_weight=None, exploration_rate=None, decrease_rate=None):
         
@@ -31,7 +29,7 @@ class Agent:
             self.actions = actions
             
         if rows is not None and cols is not None:
-            self.q_table = np.zeros((rows, cols, len(self.actions)))
+            self.q_table = {}
 
     # For practice
     def getQtable(self):
@@ -55,12 +53,26 @@ class Agent:
         if self.epsilon > 0.1:
             self.epsilon-=self.decrease_rate
 
-    def think(self, state):
+    def think(self, state, possible_action):
         """
-        Decideix l'acció basada en l'estat actual.
+        This function has been completly changed to adapt to the new Q-table structure using a dictionary.
         """
-        action = self.policy(state)
-        return self.policy(state)
+        if not possible_action:
+            return None 
+
+        # 1. Initialize the current state in the Q-table if new
+        if state not in self.q_table:
+            self.q_table[state] = {
+                next_s: 0.0 for next_s in possible_action
+            }
+        
+        # 2. Epsilon-Greedy Policy.
+        if random.random() < self.epsilon:
+            # Explore: choose a random next state (action)
+            return random.choice(possible_action)
+        else:
+            # Exploit: choose the next state (action) with max Q-value
+            return self.max_Q(state, possible_action)
 
     def policy(self, state):
         """
@@ -71,31 +83,43 @@ class Agent:
         else:
             return self.max_Q(state)
 
-    def learn(self, state, action, reward, next_state, done):
+    def learn(self, state, action, reward, next_state, done, possible_actions_next_state):
         """
         Actualització Q-Learning (Bellman Equation):
         Q(s,a) = Q(s,a) + alpha * [R + gamma * max(Q(s',a')) - Q(s,a)]
-        """
-        row, col = state
-        next_r, next_c = next_state
-        # 1. Obtenim el Q-value actual
-        current_q = self.q_table[row, col, action]
         
-        # 2. Calculem el max Q per al següent estat (s')
+        For chess, action_string is the resulting state string.
+        """
+        
+        # 1. Ensure current state and action are in the table
+        if state not in self.q_table:
+             self.q_table[state] = {}
+        if action not in self.q_table[state]:
+             self.q_table[state][action] = 0.0
+             
+        current_q = self.q_table[state][action]
+        
+        # 2. Calculate the max Q for the next state (s')
         if done:
-            # Si hem acabat, no hi ha futur, només la recompensa final
-            target = reward
+            max_next_q = 0.0 # Terminal state, no future reward
         else:
-            # Busquem el valor màxim possible des del següent estat
-            # Max Q per al següent estat
-            max_next_q = np.max(self.q_table[next_r, next_c])
-            target = reward + (self.gamma * max_next_q)
+            if next_state not in self.q_table:
+                # If s' is new, initialize it and max Q(s', a') = 0.0
+                self.q_table[next_state] = {
+                    next_s: 0.0 for next_s in possible_actions_next_state 
+                }
+                max_next_q = 0.0
+            else:
+                # Find the max Q-value from the dictionary of next state's actions
+                max_next_q = np.max(list(self.q_table[next_state].values()))
 
-        # 3. Calculem el nou valor Q amb el learning rate (alpha)
+
+        # 3. Calculate the new Q-value using the Bellman equation
+        target = reward + (self.gamma * max_next_q)
         new_q = current_q + self.alpha * (target - current_q)
         
-        # 4. Actualitzem la taula
-        self.q_table[row, col, action] = new_q
+        # 4. Update the Q-table
+        self.q_table[state][action] = new_q
 
     def explore(self, state):
         """
@@ -105,22 +129,24 @@ class Agent:
             self.epsilon -= 0.05
         return random.choice(self.actions)
         
-    def max_Q(self, state):
+    def max_Q(self, state, possible_action):
         """
-        Retorna la millor acció coneguda per a l'estat donat (Argmax).
+        Retorna la millor acció (next_state_string) coneguda per a l'estat donat (Argmax).
         """
-        # Inicialitzem amb un valor molt baix
-        best_reward = float('-inf')
+        best_reward = -float('inf')
         
-        # Per defecte triem una a l'atzar per si totes són iguals
-        best_move = random.choice(self.actions)
+        # Default move is a random one from the legal actions in case all Q-values are equal
+        best_move = random.choice(possible_action) 
 
-        for action in self.actions:
-            # Cridava a la funció lookup de la classe externa Qtable
-            evaluating_reward = self.q_table[state[0],state[1], action]
+        for action_string in possible_action:
+            # .get(action_string, 0.0) safely retrieves the Q-value, defaulting to 0.0 for new actions
+            evaluating_reward = self.q_table[state].get(action_string, 0.0)
             
             if evaluating_reward > best_reward:
                 best_reward = evaluating_reward
-                best_move = action
+                best_move = action_string
+            # Tie-breaking for exploration
+            elif evaluating_reward == best_reward and random.random() < 0.1:
+                best_move = action_string
                 
         return best_move

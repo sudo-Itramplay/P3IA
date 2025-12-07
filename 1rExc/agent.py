@@ -7,8 +7,8 @@ class Agent:
     #gamma = 0.9          # Discount factor - Pes recompenses futures(possibles) respecte a les conegudes i immediates
     gamma = 0.99
     epsilon = 0.9        # Exploration rate - Probabilitat de fer acció aleatoria
-    #Le inrementant de 0.1 a 0.5 per intentar tenir una convergencia molt mes rapida en el cas de lexercici b tmb hi ha una maner que seria eliminant la partprobabilistica de l'expplore
-    decrease_rate = 0.5  # Epsilon decay - Quant disminuim exploration rate
+    #In de case of the 1.b exercise, we decrease epsilon over time changing the value form 0.1 to 0.5, for a quicker conveergence
+    decrease_rate = 0.1  # Epsilon decay - Quant disminuim exploration rate
 
     actions = (0, 1, 2, 3) # Up, Down, Right, Left
     q_table= np.zeros((3, 4, len(actions)))
