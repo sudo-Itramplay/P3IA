@@ -62,14 +62,14 @@ class Agent:
         action = self.policy(state)
         return self.policy(state)
 
-    def policy(self, state):
+    def policy(self, state, num_actions=4):
         """
         Epsilon-Greedy Policy.
         """
         if random.random() < self.epsilon:
-            return self.explore(state)
+            return self.explore(state, num_actions)
         else:
-            return self.max_Q(state)
+            return self.max_Q(state, num_actions)
 
     def learn(self, state, action, reward, next_state, done):
         """
@@ -97,15 +97,15 @@ class Agent:
         # 4. Actualitzem la taula
         self.q_table[row, col, action] = new_q
 
-    def explore(self, state):
+    def explore(self, state, num_actions):
         """
         Retorna una acció aleatòria.
         """
         if random.random() < self.decrease_rate and self.decrease_rate > 0.1:
             self.epsilon -= 0.05
-        return random.choice(self.actions)
+        return random.choice(self.actions, 0, num_actions - 1)
         
-    def max_Q(self, state):
+    def max_Q(self, state, num_actions):
         """
         Retorna la millor acció coneguda per a l'estat donat (Argmax).
         """
@@ -113,7 +113,7 @@ class Agent:
         best_reward = float('-inf')
         
         # Per defecte triem una a l'atzar per si totes són iguals
-        best_move = random.choice(self.actions)
+        best_move = random.choice(self.actions, 0, num_actions - 1)
 
         for action in self.actions:
             # Cridava a la funció lookup de la classe externa Qtable

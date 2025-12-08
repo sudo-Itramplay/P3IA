@@ -9,10 +9,9 @@ import copy
 import math
 import board
 import numpy as np
-import sys
-import queue
-import random
 from typing import List
+from agent import Agent  as paco
+
 
 RawStateType = List[List[List[int]]]
 
@@ -25,7 +24,7 @@ class Aichess():
 
     """
 
-    def __init__(self, TA, myinit=True):
+    def __init__(self):
 
 
         self.chess = board.Board()
@@ -106,74 +105,32 @@ class Aichess():
                 pieceState = i
                 break
         return pieceState
+
+    def getWhiteState(self, current_state):
+        return self.chess.getWhiteState(current_state)
+
+    def getBlackState(self, current_state):
+        return self.chess.getBlackState(current_state)
     
 
     # TODO Fer crida a board pq dongui white i black
     #       Si es prefereix fer crida a board que dongui tot
     def getNextPositions(self, state):
-        # Given a state, we check the next possible states
-        # From these, we return a list with position, i.e., [row, column]
-        if state == None:
-            return None
-        if state[2] > 6:
-            nextStates = self.getListNextStatesB([state])
-        else:
-            nextStates = self.getListNextStatesW([state])
-        nextPositions = []
-        for i in nextStates:
-            nextPositions.append(i[0][0:2])
-        return nextPositions
+        # Delegate to board-level implementation
+        return self.chess.getNextPositions(state)
     #TODO Aquí fer un get states de black i white pot estar bé
     #   Piece sap quins moviments pot fer cada peça
     #   Board sap on està cada peça
     # Es podria gestionar aquí el next states 
     #FET, mantindrem els dos metodes, tot i aixi la logica de control dels estats estara centralitzat a una altre funio get_all_next_states
-    def getListNextStatesW(self, myState):
+    def getListNextStatesW(self, myState, rivalState=None):
+        return self.chess.getListNextStatesW(myState, rivalState)
 
-        self.chess.boardSim.getListNextStatesW(myState)
-        self.listNextStates = self.chess.boardSim.listNextStates.copy()
-
-        return self.listNextStates
-
-    def getListNextStatesB(self, myState):
-        self.chess.boardSim.getListNextStatesB(myState)
-        self.listNextStates = self.chess.boardSim.listNextStates.copy()
-
-        return self.listNextStates
+    def getListNextStatesB(self, myState, rivalState=None):
+        return self.chess.getListNextStatesB(myState, rivalState)
     
     def get_all_next_states(self, current_state, color):
-        """
-        Aquesta funcio respon al todo de les dues anteriors, centralitza la logica d'obtenir els nous estats legals.
-        Retorna: llista d'estats legals seguents
-        """
-        self.newBoardSim(current_state) #obte el board simulat actual
-        '''
-        current player pieces, seria la variable del jugador que mouria
-        rival pieces, seria la variable del jugador rival
-        next moves raw, seria la llista de nous estats possibles sense comprovar si son legals o no
-        legal next states, seria la llista final d'estats legals que es retornaria
-        '''
-        if color: #Blanques que seria el maximitzador
-            current_player_pieces = self.getWhiteState(current_state)
-            rival_pieces = self.getBlackState(current_state)
-            #utilitze les dues funcions ded alt per obtenir els estxats de cada color
-            next_moves_raw = self.getListNextStatesW(current_player_pieces)
-        else: #negres que seria el minimitzador
-            '''
-            Els negre no mouran mai, tot iaxi es importnat saber els seus possibles movimetns, per considerar que podrien o no fer les blanques
-            '''
-            current_player_pieces = self.getBlackState(current_state)
-            rival_pieces = self.getWhiteState(current_state)
-            next_moves_raw = self.getListNextStatesB(current_player_pieces)
-
-        legal_next_states = []
-        for next_move_pieces in next_moves_raw:
-            #retorna l'estat nou del tablero amb les movimetn que serien legals
-            is_legal, next_node = self.is_legal_transition(current_player_pieces,rival_pieces,next_move_pieces,color)
-            if is_legal:
-                legal_next_states.append(next_node)
-                
-        return legal_next_states
+        return self.chess.get_all_next_states(current_state, color)
 
 
     """
@@ -244,11 +201,11 @@ class Aichess():
         stochasticity: Probabilidad de que el movimiento falle (drunken sailor).
         """
         #estat inicial del tauler
-        initial_state = self.getCurrentSimState() 
+        initial_state = self.chess.getCurrentState() 
 
         for episode in range(num_episodes):
             current_state = initial_state
-            self.newBoardSim(current_state) #reet necesari a acada principi d'episodi
+            self.chess.reset_environment() #reet necesari a acada principi d'episodi
             done = False
             total_reward = 0
 
@@ -256,7 +213,7 @@ class Aichess():
 
             for step in range(max_steps_per_episode):
                 
-                legal_next_states = self.get_all_possible_moves(current_state, True)
+                legal_next_states = self.chess.get_all_next_states(current_state, True)
                 
                 if not legal_next_states:
                     # Empat per afogament (Stalemate)
@@ -268,7 +225,7 @@ class Aichess():
                 num_actions = len(legal_next_states)
                 
                 #La accio que triara l'agent segons la policy aplicada a agent.py
-                action_index = agent.policy_for_chess(state_key, num_actions) 
+                action_index = agent.policy(state_key, num_actions) 
                 
                 # El estado al que se pretendía mover
                 intended_next_state = legal_next_states[action_index]
@@ -303,10 +260,10 @@ class Aichess():
                 next_state_key = self.state_to_key(final_next_state)
                 
                 #Actualitzar la Q-table de l'agent
-                agent.learn_for_chess(state_key, action_index, reward, next_state_key, done, num_actions)
+                agent.learn(state_key, action_index, reward, next_state_key, done, num_actions)
                 
                 current_state = final_next_state
-                self.newBoardSim(current_state) #Sincronitzar el simulador, hem de mantenir les actualiztacion a la board
+                # boardSim deprecated; state is tracked logically
             
                 if done:
                     break
@@ -317,14 +274,6 @@ class Aichess():
 
         #AQUEST RETURN NS SI REALMENT FARIA FALTA PERO XDXD
         return agent.q_table
-
-    def newBoardSim(self, listStates):
-        # We create a  new boardSim
-        TA = np.zeros((8, 8))
-        for state in listStates:
-            TA[state[0]][state[1]] = state[2]
-
-        self.chess.newBoardSim(TA)
 
     def getMovement(self, state, nextState):
         # Given a state and a successor state, return the postiion of the piece that has been moved in both states
@@ -434,7 +383,7 @@ class Aichess():
     """   
     def isWatchedBk(self, currentState):
 
-        self.newBoardSim(currentState)
+        # boardSim already deprecated
 
         bkPosition = self.getPieceState(currentState, 12)[0:2]
         wkState = self.getPieceState(currentState, 6)
@@ -461,7 +410,7 @@ class Aichess():
     def allBkMovementsWatched(self, currentState):
         # In this method, we check if the black king is threatened by the white pieces
 
-        self.newBoardSim(currentState)
+        # boardSim already deprecated
         # Get the current state of the black king
         bkState = self.getPieceState(currentState, 12)
         allWatched = False
@@ -481,7 +430,7 @@ class Aichess():
                     newWhiteState.remove(wrState)
                 state = state + newWhiteState
                 # Move the black pieces to the new state
-                self.newBoardSim(state)
+                # boardSim already deprecated
 
                 # Check if in this position the black king is not threatened; 
                 # if so, not all its moves are under threat
@@ -490,7 +439,7 @@ class Aichess():
                     break
 
         # Restore the original board state
-        self.newBoardSim(currentState)
+        # boardSim already deprecated
         return allWatched
 
     def isBlackInCheckMate(self, currentState):
@@ -509,7 +458,7 @@ class Aichess():
     -----------------------------------------------------------------------------------------------------------
     """   
     def isWatchedWk(self, currentState):
-        self.newBoardSim(currentState)
+        # boardSim already deprecated
 
         wkPosition = self.getPieceState(currentState, 6)[0:2]
         bkState = self.getPieceState(currentState, 12)
@@ -535,7 +484,7 @@ class Aichess():
 
     def allWkMovementsWatched(self, currentState):
 
-        self.newBoardSim(currentState)
+        # boardSim already deprecated
         # In this method, we check if the white king is threatened by black pieces
         # Get the current state of the white king
         wkState = self.getPieceState(currentState, 6)
@@ -762,9 +711,9 @@ class Aichess():
     """
     def expectimax(self, depthWhite, depthBlack):
         
-        currentState = self.getCurrentState()
+        currentState = self.chess.getCurrentState()
         color = True
-        currentState = self.getCurrentState()
+        currentState = self.chess.getCurrentState()
         self.newBoardSim(currentState)
 
         #main game loop
@@ -784,7 +733,7 @@ class Aichess():
                 break
                 
             #take the actual movement
-            moviment = self.getMovement(self.getCurrentSimState(), millors_peces_mogudes)
+            moviment = self.getMovement(self.chess.getCurrentState(), millors_peces_mogudes)
             
             if moviment[0] is None or moviment[1] is None:
                 print("Error a 'getMovement', no s'ha trobat el moviment. Avortant.")
@@ -800,10 +749,10 @@ class Aichess():
             
             print(f"Torn de {'Blanques' if color else 'Negres'} (Expectimax)")
             print(f"Movem {from_pos} a {to_pos} (Valor esperat: {valor})")
-            self.chess.boardSim.print_board()
+            self.chess.print_board()
             
             #update the state and change turn
-            currentState = self.getCurrentSimState()
+            currentState = self.chess.getCurrentState()
             color = not color
         #final print
         if self.isBlackInCheckMate(currentState):
@@ -820,9 +769,9 @@ class Aichess():
 
     def minimaxVSalphabeta(self, depthWhite, depthBlack):
         
-        currentState = self.getCurrentState()    
+        currentState = self.chess.getCurrentState()    
         color = True
-        currentState = self.getCurrentState()
+        currentState = self.chess.getCurrentState()
         self.newBoardSim(currentState)
 
         #main game loop
@@ -843,7 +792,7 @@ class Aichess():
                 break
                 
             #take the actual movement
-            moviment = self.getMovement(self.getCurrentSimState(), millors_peces_mogudes)
+            moviment = self.getMovement(self.chess.getCurrentState(), millors_peces_mogudes)
             
             if moviment[0] is None or moviment[1] is None:
                 print("Error a 'getMovement', no s'ha trobat el moviment. Avortant.")
@@ -859,14 +808,14 @@ class Aichess():
             if not color:
                 print(f"Torn de {'Blanques' if color else 'Negres'} (Expecti)")
                 print(f"Movem {from_pos} a {to_pos} (Valor esperat: {valor})")
-                self.chess.boardSim.print_board()
+                self.chess.print_board()
             else:
                 print(f"Torn de {'Blanques' if color else 'Negres'} (alpha)")
                 print(f"Movem {from_pos} a {to_pos} (Valor esperat: {valor})")
-                self.chess.boardSim.print_board()
+                self.chess.print_board()
             
             #update state and turn
-            currentState = self.getCurrentSimState()
+            currentState = self.chess.getCurrentState()
             color = not color
 
         if self.isBlackInCheckMate(currentState):
@@ -895,24 +844,16 @@ if __name__ == "__main__":
     #     sys.exit(usage())
 
     # Initialize an empty 8x8 chess board
-    TA = np.zeros((8, 8))
-
-
-    # Load initial positions of the pieces
-    TA = np.zeros((8, 8))
-    TA[7][0] = 2   
-    TA[7][5] = 6   
-    TA[0][7] = 8   
-    TA[0][5] = 12  
     
     #EXECUTIONS OF ALL THE METHODS
     print("---------------------------------------------------------------------------")
     print("##########################   MINIMAX   ####################################")
     print("---------------------------------------------------------------------------")
     print("stating AI chess... ")
-    aichess = Aichess(TA, True)
+    aichess = Aichess()
     print("printing board")
-    aichess.chess.boardSim.print_board()
-    aichess.minimaxGame(4,4)
+    aichess.chess.print_board()
+    paco007 = paco(learning_rate=0.1, future_weight=0.9, exploration_rate=0.2)
+    aichess.qLearningChess(agent=paco007, num_episodes=1000, max_steps_per_episode=100, reward_func='heuristic', stochasticity=0.1)
 
     
