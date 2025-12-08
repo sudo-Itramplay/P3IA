@@ -2,6 +2,10 @@ import random
 import numpy as np
 
 class Agent:
+    '''
+    L'AGETN TREBALLRA AMB KESY OSIGUI TUPLES
+    '''
+
     # Hiperparàmetres per defecte
     alpha = 0.7          # Learning rate - Pes de la nova info sobre la vella
     #gamma = 0.9          # Discount factor - Pes recompenses futures(possibles) respecte a les conegudes i immediates
@@ -11,7 +15,7 @@ class Agent:
     decrease_rate = 0.1  # Epsilon decay - Quant disminuim exploration rate
 
     actions = (0, 1, 2, 3) # Up, Down, Right, Left
-    q_table= np.zeros((3, 4, len(actions)))
+    q_table= {}
 
     def __init__(self, rows=3, cols=4, actions=None, learning_rate=None, future_weight=None, exploration_rate=None, decrease_rate=None):
         
@@ -30,9 +34,11 @@ class Agent:
         if actions is not None:
             self.actions = actions
             
-        if rows is not None and cols is not None:
-            self.q_table = np.zeros((rows, cols, len(self.actions)))
-
+        #if rows is not None and cols is not None:
+            #self.q_table = {np.zeros((rows, cols, len(self.actions)))}
+            #ENTENC QUE NO CAL MANTENIR LA LGOICA DEL GRID, SENZILLAMENT POSOS AIXO I AJ ESTA
+        self.q_table = {}
+    
     # For practice
     def getQtable(self):
         return self.q_table
@@ -57,45 +63,52 @@ class Agent:
 
     def think(self, state):
         """
-        Decideix l'acció basada en l'estat actual.
+        Dummy function
         """
-        action = self.policy(state)
         return self.policy(state)
 
-    def policy(self, state):
+    #A la politica hem d'afegir estats possibles, ja que hem de tenir en compte que hi ha estats no valids en el futur
+    #possible_acions_n hauria de ser el nombre daccions possibles en l'estat actual
+    def policy(self, state, possible_actions_n):
         """
         Epsilon-Greedy Policy.
         """
         if random.random() < self.epsilon:
-            return self.explore(state)
+            return self.explore(possible_actions_n)
         else:
-            return self.max_Q(state)
+            return self.max_Q(state, possible_actions_n)
 
-    def learn(self, state, action, reward, next_state, done):
+    def learn(self, state, action, reward, next_state, done, n_actions_in_state):
         """
         Actualització Q-Learning (Bellman Equation):
         Q(s,a) = Q(s,a) + alpha * [R + gamma * max(Q(s',a')) - Q(s,a)]
         """
-        row, col = state
-        next_r, next_c = next_state
-        # 1. Obtenim el Q-value actual
-        current_q = self.q_table[row, col, action]
+        #mirem que lestat existeixi
+        if state not in self.q_table:
+            self.q_table[state] = [0.0] * n_actions_in_state
         
-        # 2. Calculem el max Q per al següent estat (s')
+        #hauriemde rmodelar la mida si ara tenim mes possibles accions
+        if action >= len(self.q_table[state]):
+             self.q_table[state].extend([0.0] * (action + 1 - len(self.q_table[state])))
+             
+        current_q = self.q_table[state][action]
+        
+        #busquem el max q del seguent estat
         if done:
-            # Si hem acabat, no hi ha futur, només la recompensa final
             target = reward
         else:
-            # Busquem el valor màxim possible des del següent estat
-            # Max Q per al següent estat
-            max_next_q = np.max(self.q_table[next_r, next_c])
+            if next_state not in self.q_table or not self.q_table[next_state]:
+                max_next_q = 0.0
+            else:
+                max_next_q = max(self.q_table[next_state])
+                
             target = reward + (self.gamma * max_next_q)
 
-        # 3. Calculem el nou valor Q amb el learning rate (alpha)
+        #Calculem el nou valor Q amb el learning rate (alpha)
         new_q = current_q + self.alpha * (target - current_q)
         
-        # 4. Actualitzem la taula
-        self.q_table[row, col, action] = new_q
+        #Actualitzem la taula
+        self.q_table[state],[action] = new_q
 
     def explore(self, state):
         """
@@ -105,10 +118,10 @@ class Agent:
             self.epsilon -= 0.05
         return random.choice(self.actions)
         
-    def max_Q(self, state):
-        """
+    def max_Q(self, state, n_actions_in_state):
+        '''
         Retorna la millor acció coneguda per a l'estat donat (Argmax).
-        """
+        
         # Inicialitzem amb un valor molt baix
         best_reward = float('-inf')
         
@@ -124,3 +137,18 @@ class Agent:
                 best_move = action
                 
         return best_move
+        '''
+        if state not in self.q_table:
+            #estat no vist 
+            return self.explore(n_actions_in_state)
+            
+        q_values = self.q_table[state]
+
+        # Assegurar que el vector de Q-values cobreixi les accions disponibles
+        if len(q_values) < n_actions_in_state:
+             q_values.extend([0.0] * (n_actions_in_state - len(q_values)))
+
+        #Arecompewnsa maxima sobre les accions disponibles.
+        best_move_index = np.argmax(np.array(q_values[:n_actions_in_state]))
+        
+        return int(best_move_index)

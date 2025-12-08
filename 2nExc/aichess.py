@@ -11,6 +11,7 @@ import board
 import numpy as np
 import sys
 import queue
+import random
 from typing import List
 
 RawStateType = List[List[List[int]]]
@@ -97,6 +98,7 @@ class Aichess():
         return isSameState
     
     # TODO Ho necessitem?
+    # FET Val ara per ara ho mantindre igual, estic veient que es fa servir en altres llocs que no pretenim modificar
     def getPieceState(self, state, piece):
         pieceState = None
         for i in state:
@@ -125,6 +127,7 @@ class Aichess():
     #   Piece sap quins moviments pot fer cada peça
     #   Board sap on està cada peça
     # Es podria gestionar aquí el next states 
+    #FET, mantindrem els dos metodes, tot i aixi la logica de control dels estats estara centralitzat a una altre funio get_all_next_states
     def getListNextStatesW(self, myState):
 
         self.chess.boardSim.getListNextStatesW(myState)
@@ -138,7 +141,39 @@ class Aichess():
 
         return self.listNextStates
     
+    def get_all_next_states(self, current_state, color):
+        """
+        Aquesta funcio respon al todo de les dues anteriors, centralitza la logica d'obtenir els nous estats legals.
+        Retorna: llista d'estats legals seguents
+        """
+        self.newBoardSim(current_state) #obte el board simulat actual
+        '''
+        current player pieces, seria la variable del jugador que mouria
+        rival pieces, seria la variable del jugador rival
+        next moves raw, seria la llista de nous estats possibles sense comprovar si son legals o no
+        legal next states, seria la llista final d'estats legals que es retornaria
+        '''
+        if color: #Blanques que seria el maximitzador
+            current_player_pieces = self.getWhiteState(current_state)
+            rival_pieces = self.getBlackState(current_state)
+            #utilitze les dues funcions ded alt per obtenir els estxats de cada color
+            next_moves_raw = self.getListNextStatesW(current_player_pieces)
+        else: #negres que seria el minimitzador
+            '''
+            Els negre no mouran mai, tot iaxi es importnat saber els seus possibles movimetns, per considerar que podrien o no fer les blanques
+            '''
+            current_player_pieces = self.getBlackState(current_state)
+            rival_pieces = self.getWhiteState(current_state)
+            next_moves_raw = self.getListNextStatesB(current_player_pieces)
 
+        legal_next_states = []
+        for next_move_pieces in next_moves_raw:
+            #retorna l'estat nou del tablero amb les movimetn que serien legals
+            is_legal, next_node = self.is_legal_transition(current_player_pieces,rival_pieces,next_move_pieces,color)
+            if is_legal:
+                legal_next_states.append(next_node)
+                
+        return legal_next_states
 
 
     """
@@ -151,6 +186,8 @@ class Aichess():
     -----------------------------------------------------------------------------------------------------------
     """
     # <TODO> Unificar aquests dos o borrar un
+    #FET, he decidit comentar/eliminar isVisitedSituation, centrant tot a isVisited
+    '''
     def isVisitedSituation(self, color, mystate):
         
         if (len(self.listVisitedSituations) > 0):
@@ -167,7 +204,7 @@ class Aichess():
             return isVisited
         else:
             return False
-        
+    '''    
     def isVisited(self, mystate):
 
         if (len(self.listVisitedStates) > 0):
@@ -187,8 +224,100 @@ class Aichess():
     # <\TODO> Unificar aquests dos o borrar un
 
 
+    #NO SE SI REALEMTN CAL O ES FUMADA, E GEMINI M'HA DIT QUE HO FES PER EVITAR ERRORS EN LA NOVA LOGICA
+    def state_to_key(self, state):
+        """
+        converteix la llista destats en tupla
+        """
+        #ordena per a garanitzar un rodre
+        sorted_state = sorted([tuple(p) for p in state], key=lambda x: (x[2], x[0], x[1]))
+        return tuple(sorted_state)
+
 
     # TODO Fer un enviroment .reset?
+    # FET, He fet una funcio learniin, que s'haurai d'encarregar de reiniciar l'entorn i fer el loop de cada episodi
+    def qLearningChess(self, agent, num_episodes, max_steps_per_episode, reward_func='simple', stochasticity=0.0):
+        """
+        cicle denremanet de qlearning pels escacs
+        
+        APARTAT C DEMANA APLICAR DRUNKEN SAILOR ESTARA COMENTAT
+        stochasticity: Probabilidad de que el movimiento falle (drunken sailor).
+        """
+        #estat inicial del tauler
+        initial_state = self.getCurrentSimState() 
+
+        for episode in range(num_episodes):
+            current_state = initial_state
+            self.newBoardSim(current_state) #reet necesari a acada principi d'episodi
+            done = False
+            total_reward = 0
+
+            self.listVisitedStates = [] 
+
+            for step in range(max_steps_per_episode):
+                
+                legal_next_states = self.get_all_possible_moves(current_state, True)
+                
+                if not legal_next_states:
+                    # Empat per afogament (Stalemate)
+                    reward = 0
+                    done = True
+                    break
+                
+                state_key = self.state_to_key(current_state)
+                num_actions = len(legal_next_states)
+                
+                #La accio que triara l'agent segons la policy aplicada a agent.py
+                action_index = agent.policy_for_chess(state_key, num_actions) 
+                
+                # El estado al que se pretendía mover
+                intended_next_state = legal_next_states[action_index]
+                
+                final_next_state = intended_next_state
+                #logica drunken sailor
+                '''
+                if stochasticity > 0.0 and random.random() < stochasticity:
+                    other_actions = [s for i, s in enumerate(legal_next_states) if i != action_index]
+                    if other_actions:
+                        final_next_state = random.choice(other_actions)
+                '''
+                # 4. Calcular Recompensa y Finalización
+                is_checkmate = self.isBlackInCheckMate(final_next_state)
+                is_draw = self.is_Draw(final_next_state)
+                
+                reward = 0
+                
+                if is_checkmate:
+                    reward = 100
+                    done = True
+                elif is_draw:
+                    reward = -10#penalitzaio per empat
+                    done = True
+                elif reward_func == 'simple':
+                    reward = -1 
+                elif reward_func == 'heuristic':
+                    reward = self.heuristica(final_next_state, True)
+                
+                total_reward += reward
+                
+                next_state_key = self.state_to_key(final_next_state)
+                
+                #Actualitzar la Q-table de l'agent
+                agent.learn_for_chess(state_key, action_index, reward, next_state_key, done, num_actions)
+                
+                current_state = final_next_state
+                self.newBoardSim(current_state) #Sincronitzar el simulador, hem de mantenir les actualiztacion a la board
+            
+                if done:
+                    break
+
+            if episode in [0, num_episodes // 2, num_episodes - 1]:
+                 print(f"--- Episode {episode+1} (Reward: {total_reward}) ---")
+                 #imprmi qtabel
+
+        #AQUEST RETURN NS SI REALMENT FARIA FALTA PERO XDXD
+        return agent.q_table
+
     def newBoardSim(self, listStates):
         # We create a  new boardSim
         TA = np.zeros((8, 8))
