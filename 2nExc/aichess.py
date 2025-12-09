@@ -881,6 +881,6 @@ if __name__ == "__main__":
     print("printing board")
     aichess.chess.print_board()
     paco007 = paco(learning_rate=0.1, future_weight=0.9, exploration_rate=0.2)
-    aichess.qLearningChess(agent=paco007, num_episodes=3000, max_steps_per_episode=200, reward_func='simple', stochasticity=0.1)
+    aichess.qLearningChess(agent=paco007, num_episodes=3000, max_steps_per_episode=200, reward_func='heuristic', stochasticity=0.1)
 
     
