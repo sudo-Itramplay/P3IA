@@ -15,8 +15,6 @@ class Board:
     currentStateW = ()
     # coord Recompensa final (Objectiu)
     currentStateB = ()
-    # coord obstacle
-    currentObs = ()
     # Recompensa per moviment (pas)
     reward = -1
     # Bonificació final
@@ -24,7 +22,7 @@ class Board:
     # Wall penalization
     wall_penalization = -100
     
-    def __init__(self, rows=8, cols=8, currentStateW=(7,3), currentStateB=(0,4), currentObs=None):
+    def __init__(self, rows=8, cols=8, currentStateWK=(7,3), currentStateBK=(0,4), currentStateWR=(7,0)):
         """Inicialitza un tauler d'escacs 8x8 amb Rei Blanc a (7,3) i Rei Negre a (0,4)."""
 
         if self.initState is None:
@@ -34,53 +32,20 @@ class Board:
             # Inicialitzem amb dtype=object per poder guardar números i peces
             self.board = np.full((rows, cols), -1, dtype=object)
             
-            self.currentStateW = currentStateW
-            self.currentStateB = currentStateB
-            self.currentObs = currentObs
+            self.currentStateW = (currentStateWK, currentStateWR)
+            self.currentStateB = currentStateBK
 
+
+            #Posem posició dels blancs
             # Posem el Rei Blanc a la posició W
-            self.board[self.currentStateW] = piece.King(True)
-            
+            self.board[self.currentStateW[0]] = piece.King(True)
+            # Posem el Rook Blanc a la posició W1
+            self.board[self.currentStateW[1]] = piece.Rook(True)
             # Posem el Rei Negre (Objectiu) a la posició B
             self.board[self.currentStateB] = piece.King(False)
 
-            # Posem obstacle si es proporciona
-            if self.currentObs is not None:
-                self.board[self.currentObs] = self.wall_penalization
-
             self.initState = 1
 
-    def init2(self, rows=3, cols=4,currentStateW=(2,0), currentStateB=(0,3), currentObs=(1,1)):     
-        """Inicialitza amb recompensa manhattan negativa cap al tresor i obstacle."""
-
-        if self.initState is None:
-            self.rows = rows
-            self.cols = cols
-
-            # Tauler amb números (recompenses) + peces
-            self.board = np.empty((rows, cols), dtype=object)
-
-            self.currentStateW = currentStateW
-            self.currentStateB = currentStateB
-            self.currentObs   = currentObs
-
-            # Omplim amb recompensa = -distància Manhattan fins al tresor
-            goal_r, goal_c = self.currentStateB
-            for r in range(rows):
-                for c in range(cols):
-                    dist = abs(r - goal_r) + abs(c - goal_c)
-                    if dist == 0:
-                        self.board[r, c] = self.treasure
-                    else:
-                        self.board[r, c] = -dist
-
-            # Posem obstacle (casella grisa)
-            self.board[self.currentObs] = self.wall_penalization
-
-            # Posem el Rei a la posició W
-            self.board[self.currentStateW] = piece.King(True)
-
-            self.initState = 1
 
     """
     -----------------------------------------------------------------------------------------------------------
@@ -143,11 +108,22 @@ class Board:
         for r in range(self.rows):
             for c in range(self.cols):
                 cell = self.board[r, c]
-                # Si la casella té una peça (King object), registrem-la
-                if isinstance(cell, object) and hasattr(cell, 'name'):
-                    # Obtenim l'id de la peça (6=White King, 12=Black King, etc.)
-                    piece_id = 6 if (hasattr(cell, 'color') and cell.color) else 12
-                    pieces.append([r, c, piece_id])
+                
+                # Verifiquem si la casella conté una peça vàlida
+                if cell is not None and hasattr(cell, 'name'):
+                    piece_id = None
+                    
+                    # Lògica d'assignació d'IDs segons Tipus i Color
+                    # IDs estàndard: 2=Torre Blanca, 6=Rei Blanc, 8=Torre Negra, 12=Rei Negre
+                    if cell.name == 'K': # Rei
+                        piece_id = 6 if cell.color else 12
+                    elif cell.name == 'R': # Torre
+                        piece_id = 2 if cell.color else 8
+                    
+                    # Només afegim si hem identificat la peça
+                    if piece_id is not None:
+                        pieces.append([r, c, piece_id])
+                        
         return pieces
 
     def print_board(self):
@@ -178,95 +154,55 @@ class Board:
             return True
         return False
     
-    def move_piece(self, action):
-        """Mou el rei blanc segons l'acció (0 amunt, 1 avall, 2 dreta, 3 esquerra)."""
-        current_r, current_c = self.currentStateW
+    def movePiece(self, start, to):
+        # Crear diccionaris per trobar peces ràpidament per ID o posició
+        # start i to són llistes de tuples: (fila, col, id_peça)
         
-        # 1. Definició de Deltas (Canvi de coordenades segons l'acció)
-        # Format: (delta_fila, delta_columna)
-        deltas = {
-            0: (-1, 0),  # Up
-            1: (1, 0),   # Down
-            2: (0, 1),   # Right
-            3: (0, -1)   # Left
-        }
-        
-        # Recuperem el desplaçament. Si l'acció no existeix, no ens movem (0,0)
-        dr, dc = deltas.get(action, (0, 0))
-        
-        # Calculem la proposta de nova posició
-        new_r = current_r + dr
-        new_c = current_c + dc
-        new_pos = (new_r, new_c)
-        
-        # --- 2. Validacions i Lògica de Moviment ---
-        
-        reward = self.reward # Cost per defecte (-1)
-        done = False         # Per defecte no hem acabat
+        start_dict = {p[2]: p for p in start} # Clau: ID peça, Valor: Tupla completa
+        to_dict = {p[2]: p for p in to}
 
-        # A) Validació de límits del tauler (Murs)
-        if not (0 <= new_r < self.rows and 0 <= new_c < self.cols):
-            # Si surt del tauler: Penalització forta i NO es mou
-            return self.currentStateW, self.wall_penalization, done
-
-        # B) Comprovem si hem arribat a l'objectiu
-        if new_pos == self.currentStateB:
-            reward = self.treasure
-            done = True # Episodi acabat
-
-        # C) Validació de Obstacle
-        if (self.currentObs[0] == new_r and self.currentObs[1] == new_c):
-            # Si troba obstacle: Penalització forta i NO es mou
-            return self.currentStateW, self.wall_penalization, done
-
-        # --- 3. Actualització del Tauler (Física del moviment) ---
-
-        # Recuperem l'objecte Rei
-        king_obj = self.board[self.currentStateW]
-        
-        # Buidem la casella antiga
-        self.board[self.currentStateW] = -1 
-        
-        # Actualitzem coordenades internes
-        self.currentStateW = new_pos
-        
-        # Posem el Rei a la nova casella (visualització)
-        # Nota: Si és l'objectiu, tècnicament el 'mengem', però visualment posem el rei igualment
-        self.board[new_pos] = king_obj
-        
-        return self.currentStateW, reward, done
+        # Iterar per trobar quina peça ha canviat de coordenades
+        for piece_id, piece_start in start_dict.items():
+            if piece_id in to_dict:
+                piece_to = to_dict[piece_id]
+                
+                # Si les coordenades (índex 0 i 1) són diferents, aquesta és la peça moguda
+                if piece_start[0:2] != piece_to[0:2]:
+                    start_pos = (piece_start[0], piece_start[1])
+                    to_pos = (piece_to[0], piece_to[1])
+                    
+                    # Recuperar l'objecte peça del tauler
+                    piece_obj = self.board[start_pos[0]][start_pos[1]]
+                    
+                    # Realitzar el moviment físic a la matriu
+                    if piece_obj != -1:
+                        self.board[to_pos[0]][to_pos[1]] = piece_obj
+                        self.board[start_pos[0]][start_pos[1]] = -1
+                    return # Assumim que només es mou una peça per torn
     
-    def reset_environment(self, rows=3, cols=4, currentStateW=(2,0), currentStateB=(0,3), currentObs=(1,1), mode='default'):
-        """Reinicia l'entorn; `mode='init2'` aplica recompenses Manhattan, `default` omple amb -1."""
-        # If caller requested the init2 shaped initialization, reuse init2()
-        if mode == 'init2':
-            # init2 only runs when self.initState is None, so temporarily clear it
-            prev = self.initState
-            self.initState = None
-            self.init2(rows=rows, cols=cols, currentStateW=currentStateW, currentStateB=currentStateB, currentObs=currentObs)
-            # restore initState flag
-            self.initState = 1 if prev is None else prev
-            return
+    def reset_environment(self, rows=8, cols=8, currentStateWK=(7,3), currentStateBK=(0,4), currentStateWR=(7,0)):
+        """Inicialitza un tauler d'escacs 8x8 amb Rei Blanc a (7,3) i Rei Negre a (0,4)."""
 
-        # Default behaviour: simple -1 fill and place special cells
-        self.rows = rows
-        self.cols = cols
+        if self.initState is None:
+            self.rows = rows
+            self.cols = cols
+            
+            # Inicialitzem amb dtype=object per poder guardar números i peces
+            self.board = np.full((rows, cols), -1, dtype=object)
+            
+            self.currentStateW = (currentStateWK, currentStateWR)
+            self.currentStateB = currentStateBK
 
-        # 1. Inicialitzem amb dtype=object per poder guardar números I peces
-        self.board = np.full((rows, cols), -1, dtype=object)
 
-        self.currentStateW = currentStateW
-        self.currentStateB = currentStateB
-        self.currentObs = currentObs
+            #Posem posició dels blancs
+            # Posem el Rei Blanc a la posició W
+            self.board[self.currentStateW[0]] = piece.King(True)
+            # Posem el Rook Blanc a la posició W1
+            self.board[self.currentStateW[1]] = piece.Rook(True)
+            # Posem el Rei Negre (Objectiu) a la posició B
+            self.board[self.currentStateB] = piece.King(False)
 
-        # 2. Posem el valor 100 a la posició B
-        self.board[self.currentStateB] = self.treasure
-
-        # 3. Posem el King a la posició W
-        self.board[self.currentStateW] = piece.King(True)
-
-        # 4. Posem obstacle
-        self.board[self.currentObs] = self.wall_penalization
+            self.initState = 1
 
     # --------------------------------------------------------------------------------------------------
     # Chess helper utilities (ported from aichess.py)
@@ -469,7 +405,7 @@ class Board:
             rival_pieces = self.getBlackState(current_state)
             next_moves_raw = self.getListNextStatesW(current_player_pieces, rival_pieces)
         else:
-            current_player_pieces = self.getBlackState(current_state)
+            #current_player_pieces = self.getBlackState(current_state)
             rival_pieces = self.getWhiteState(current_state)
             next_moves_raw = self.getListNextStatesB(current_player_pieces, rival_pieces)
 

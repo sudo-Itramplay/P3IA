@@ -8,6 +8,7 @@ Created on Thu Sep  8 11:22:03 2022
 import copy
 import math
 import board
+import time
 import numpy as np
 from typing import List
 from agent import Agent  as paco
@@ -31,15 +32,64 @@ class Aichess():
 
         self.listNextStates = []
         self.listVisitedStates = []
-        self.listVisitedSituations = []
         self.pathToTarget = []
-        self.depthMax = 8
+        self.depthMax = 8 
         # Dictionary to reconstruct the visited path
         self.dictPath = {}
         # Prepare a dictionary to control the visited state and at which
         # depth they were found for DepthFirstSearchOptimized
-        self.dictVisitedStates = {}
+        self.dictVisitedStates = {}     
+        
+    def debug_episode(self, episode, current_state, reward, action_index, legal_next_states, final_next_state, is_checkmate, is_draw, step):
+        """
+        Debug function to print detailed information about each episode and step
+        """
+        print(f"\n{'='*80}")
+        print(f"EPISODE {episode} - STEP {step}")
+        print(f"{'='*80}")
+        print(f"Total Reward so far: {reward}")
+        print(f"Action Index: {action_index} / Total Legal Moves: {len(legal_next_states)}")
+        print(f"Checkmate: {is_checkmate} | Draw: {is_draw}")
+        print(f"\nCurrent State Pieces:")
+        self.print_state_pieces(current_state)
+        print(f"\nNext State Pieces:")
+        self.print_state_pieces(final_next_state)
+        print(f"{'='*80}\n")
 
+    def print_state_pieces(self, state):
+        """
+        Print detailed information about all pieces in a state
+        """
+        if not state:
+            print("  [EMPTY STATE]")
+            return
+        
+        piece_names = {
+            2: "White Rook",
+            6: "White King",
+            8: "Black Rook",
+            12: "Black King"
+        }
+        
+        for piece in state:
+            row, col, piece_id = piece[0], piece[1], piece[2]
+            piece_name = piece_names.get(piece_id, f"Unknown({piece_id})")
+            print(f"  {piece_name}: Position ({row}, {col})")
+
+    def print_reward_analysis(self, reward, is_checkmate, is_draw):
+        """
+        Analyze and explain why the reward changed
+        """
+        print(f"\n--- REWARD ANALYSIS ---")
+        if is_checkmate:
+            print(f"✓ CHECKMATE! Reward: +100")
+        elif is_draw:
+            print(f"○ DRAW! Reward: -30 (penalty)")
+        elif reward == -1:
+            print(f"✗ Regular move. Reward: -1 (step penalty)")
+        else:
+            print(f"? Heuristic move. Reward: {reward}")
+        print(f"--- END ANALYSIS ---\n")
 
 
         """
@@ -57,24 +107,6 @@ class Aichess():
         for piece in state:
             copyState.append(piece.copy())
         return copyState
-        
-    def changeState(self, start, to):
-        # Determine which piece has moved from the start state to the next state
-        if start[0] == to[0]:
-            movedPieceStart = 1
-            movedPieceTo = 1
-        elif start[0] == to[1]:
-            movedPieceStart = 1
-            movedPieceTo = 0
-        elif start[1] == to[0]:
-            movedPieceStart = 0
-            movedPieceTo = 1
-        else:
-            movedPieceStart = 0
-            movedPieceTo = 0
-
-        # Move the piece that changed
-        self.chess.moveSim(start[movedPieceStart], to[movedPieceTo])  
 
 
     def isSameState(self, a, b):
@@ -144,24 +176,6 @@ class Aichess():
     """
     # <TODO> Unificar aquests dos o borrar un
     #FET, he decidit comentar/eliminar isVisitedSituation, centrant tot a isVisited
-    '''
-    def isVisitedSituation(self, color, mystate):
-        
-        if (len(self.listVisitedSituations) > 0):
-            perm_state = list(permutations(mystate))
-
-            isVisited = False
-            for j in range(len(perm_state)):
-
-                for k in range(len(self.listVisitedSituations)):
-                    if self.isSameState(list(perm_state[j]), self.listVisitedSituations.__getitem__(k)[1]) and color == \
-                            self.listVisitedSituations.__getitem__(k)[0]:
-                        isVisited = True
-
-            return isVisited
-        else:
-            return False
-    '''    
     def isVisited(self, mystate):
 
         if (len(self.listVisitedStates) > 0):
@@ -195,84 +209,95 @@ class Aichess():
     # FET, He fet una funcio learniin, que s'haurai d'encarregar de reiniciar l'entorn i fer el loop de cada episodi
     def qLearningChess(self, agent, num_episodes, max_steps_per_episode, reward_func='simple', stochasticity=0.0):
         """
-        cicle denremanet de qlearning pels escacs
-        
-        APARTAT C DEMANA APLICAR DRUNKEN SAILOR ESTARA COMENTAT
-        stochasticity: Probabilidad de que el movimiento falle (drunken sailor).
+        Cicle d'entrenament de Q-Learning per als escacs.
         """
-        #estat inicial del tauler
+        # Estat inicial del tauler
         initial_state = self.chess.getCurrentState() 
 
         for episode in range(num_episodes):
-            current_state = initial_state
-            self.chess.reset_environment() #reet necesari a acada principi d'episodi
+            self.chess.reset_environment()
+            # Assegurem que tenim l'estat net després del reset
+            current_state = self.chess.getCurrentState()
+            self.listVisitedStates = []
             done = False
             total_reward = 0
+            
+            # OPTIMITZACIÓ: Calculem la clau inicial només un cop a l'inici de l'episodi
+            state_key = self.state_to_key(current_state)
 
-            self.listVisitedStates = [] 
+            print(f"--- (inici) ---")
+            print(f"--- Episode {episode+1} (Reward: {total_reward}) ---")
 
             for step in range(max_steps_per_episode):
                 
                 legal_next_states = self.chess.get_all_next_states(current_state, True)
                 
                 if not legal_next_states:
-                    # Empat per afogament (Stalemate)
-                    reward = 0
+                    # Stalemate (ofegat)
+                    reward = -500
                     done = True
                     break
                 
-                state_key = self.state_to_key(current_state)
                 num_actions = len(legal_next_states)
                 
-                #La accio que triara l'agent segons la policy aplicada a agent.py
+                # Triem acció usant la clau actual
                 action_index = agent.policy(state_key, num_actions) 
+                final_next_state = legal_next_states[action_index]
                 
-                # El estado al que se pretendía mover
-                intended_next_state = legal_next_states[action_index]
-                
-                final_next_state = intended_next_state
-                #logica drunken sailor
-                '''
-                if stochasticity > 0.0 and random.random() < stochasticity:
-                    other_actions = [s for i, s in enumerate(legal_next_states) if i != action_index]
-                    if other_actions:
-                        final_next_state = random.choice(other_actions)
-                '''
-                # 4. Calcular Recompensa y Finalización
-                is_checkmate = self.isBlackInCheckMate(final_next_state)
-                is_draw = self.is_Draw(final_next_state)
+                # --- CORRECCIÓ PRINCIPAL ---
+                # Comprovem si el Rei Negre (ID 12) encara és al tauler
+                bk_state = self.getPieceState(final_next_state, 12)
                 
                 reward = 0
-                
-                if is_checkmate:
+                is_checkmate = False
+                is_draw = False
+
+                if bk_state is None:
+                    # El rei ha estat capturat -> VICTÒRIA
                     reward = 100
                     done = True
-                elif is_draw:
-                    reward = -10#penalitzaio per empat
-                    done = True
-                elif reward_func == 'simple':
-                    reward = -1 
-                elif reward_func == 'heuristic':
-                    reward = self.heuristica(final_next_state, True)
+                else:
+                    # El rei hi és, comprovem escac i mat o taules de forma segura
+                    is_checkmate = self.isBlackInCheckMate(final_next_state)
+                    is_draw = self.is_Draw(final_next_state)
+                    
+                    if reward_func == 'heuristic':
+                        reward = self.heuristica(final_next_state, True)
+                    elif is_draw:
+                        reward = -30
+                        done = True
+                    elif reward_func == 'simple':
+                        reward = -1 
+                    elif is_checkmate:
+                        reward = 100
+                        done = True
                 
                 total_reward += reward
                 
+                # Calculem la clau del següent estat UNA sola vegada
                 next_state_key = self.state_to_key(final_next_state)
                 
-                #Actualitzar la Q-table de l'agent
+                # Aprenentatge
                 agent.learn(state_key, action_index, reward, next_state_key, done, num_actions)
                 
+                # Movem peça visualment (això actualitza self.board)
+                # Important: fer-ho abans de canviar current_state
+                self.chess.movePiece(current_state, final_next_state)
+                
+                # Actualitzem variables per la següent iteració
                 current_state = final_next_state
-                # boardSim deprecated; state is tracked logically
-            
+                state_key = next_state_key
+
                 if done:
                     break
 
-            if episode in [0, num_episodes // 2, num_episodes - 1]:
-                 print(f"--- Episode {episode+1} (Reward: {total_reward}) ---")
-                 #imprmi qtabel
-
-        #AQUEST RETURN NS SI REALMENT FARIA FALTA PERO XDXD
+            print(f"--- (FINAL) ---")
+            print(f"--- Episode {episode+1} (Reward: {total_reward}) ---")
+            self.chess.print_board()
+            
+            if episode < 5 or episode % 100 == 0: 
+                time.sleep(1) 
+        
         return agent.q_table
 
     def getMovement(self, state, nextState):
@@ -679,8 +704,10 @@ class Aichess():
         2nd condition : 4-fold repetition of the board state.
         """
 
+        # PRINTS COMENTATS PER FER LA IA
+
         if len(current_state) == 2:
-            print("There are only 2 kings.")
+            #print("There are only 2 kings.")
             return True
         
         #Instead of checking if the state has appeared before, we count how many times it has appeared, when gets to 4 stops
@@ -691,7 +718,7 @@ class Aichess():
 
         #If the state has already appeared 3 times in the history, the current move is the 4th
         if repetition_count >= 3:
-            print(f"Draw per repetició de posició: La posició actual ha aparegut {repetition_count + 1} vegades.")
+            #print(f"Draw per repetició de posició: La posició actual ha aparegut {repetition_count + 1} vegades.")
             return True # Draw by 4-fold repetition
 
         self.listVisitedStates.append(self.copyState(current_state))
@@ -854,6 +881,6 @@ if __name__ == "__main__":
     print("printing board")
     aichess.chess.print_board()
     paco007 = paco(learning_rate=0.1, future_weight=0.9, exploration_rate=0.2)
-    aichess.qLearningChess(agent=paco007, num_episodes=1000, max_steps_per_episode=100, reward_func='heuristic', stochasticity=0.1)
+    aichess.qLearningChess(agent=paco007, num_episodes=3000, max_steps_per_episode=200, reward_func='simple', stochasticity=0.1)
 
     

@@ -108,7 +108,7 @@ class Agent:
         new_q = current_q + self.alpha * (target - current_q)
         
         #Actualitzem la taula
-        self.q_table[state],[action] = new_q
+        self.q_table[state][action] = new_q
 
     def explore(self, state):
         """
