@@ -44,22 +44,28 @@ class Aichess():
     def print_optimal_path_from_qtable(self, agent):
         """
         Reconstructs and prints the optimal path based on the final Q-table, 
-        starting from the initial state of the board.
+        starting from the initial state of the board (greedy policy).
         """
-        print(f"\nOptimal Path (Greedy Policy from Q-Table, Max Reward Found: {self.best_reward})")
+        # Create a temporary environment to simulate the optimal path cleanly
+        temp_aichess = Aichess()
+        temp_aichess.depthMax = self.depthMax # Inherit max depth if relevant
+        
+        print(f"\nOptimal Path (Greedy Policy from Q-Table, Max Reward Found: {self.best_reward}, Min Steps: {self.min_steps_for_best_reward})")
         print("--------------------------------------------------------------------------")
 
-        # Set up a temporary board to simulate the optimal path
-        self.chess.reset_environment()
-        current_state_pieces = self.chess.getCurrentState()
+        temp_aichess.chess.reset_environment()
+        current_state_pieces = temp_aichess.chess.getCurrentState()
         state_key = self.state_to_key(current_state_pieces)
         
         path_steps = 0
         # Safety break to prevent infinite loops in non-terminal states
+        # Use min_steps_for_best_reward as a target length, plus a buffer
         max_path_length = self.min_steps_for_best_reward + 50 if self.min_steps_for_best_reward != float('inf') else 100 
+
+        move_sequence = []
         
         print(f"STARTING POSITION (Initial State):")
-        self.chess.print_board()
+        temp_aichess.chess.print_board()
 
         while path_steps < max_path_length:
             
@@ -67,23 +73,37 @@ class Aichess():
             # Check if Black King (ID 12) is captured
             bk_state = self.getPieceState(current_state_pieces, 12)
             if bk_state is None:
-                print(f"STEP {path_steps + 1}: Checkmate! (Goal Reached)")
+                print(f"STEP {path_steps}: GOAL REACHED (Black King Captured).")
+                break
+
+            # Check for Checkmate (goal state learned by the agent)
+            # We use the main instance's checkmate logic here, as it's the one that knows the rules
+            is_checkmate = temp_aichess.isBlackInCheckMate(current_state_pieces)
+            if is_checkmate:
+                # If the agent achieved checkmate on the previous step, the current state
+                # is the checkmate state.
+                print(f"STEP {path_steps}: CHECKMATE! (Goal State).")
                 break
 
             # 2. Get all legal next states from the current position
             # Color is True (White's turn) as Q-Learning agent always moves white
-            legal_next_states = self.chess.get_all_next_states(current_state_pieces, True)
+            # Use temp_aichess to respect the internal state of the board for legality checks
+            legal_next_states = temp_aichess.chess.get_all_next_states(current_state_pieces, True)
             
             if not legal_next_states:
-                print(f"STEP {path_steps + 1}: Stalemate/No Legal Moves (Path Ended)")
+                print(f"STEP {path_steps}: Stalemate/No Legal Moves (Path Ended).")
                 break
             
             num_actions = len(legal_next_states)
             
             # 3. Use the Q-table to find the best action (greedy choice)
-            # max_Q is defined in agent.py and takes state_key and num_actions
+            # Use the agent from the *main* training context (the one passed to the function)
             action_index = agent.max_Q(state_key, num_actions) 
             
+            # The agent might return a random action (explore) if the state is new. 
+            # max_Q should ideally use an epsilon of 0 (or policy_last_iteration) for greedy path.
+            # Assuming agent.max_Q returns a deterministic best move index from known states.
+
             if action_index < 0 or action_index >= num_actions:
                 print(f"STEP {path_steps + 1}: Error: Policy returned invalid action index {action_index}. Stopping path.")
                 break
@@ -92,22 +112,27 @@ class Aichess():
             next_state_pieces = legal_next_states[action_index]
             
             # 5. Get the movement information for printing
-            # self.getMovement requires access to the full piece lists
+            # Use the main instance's utility method
             move_info = self.getMovement(current_state_pieces, next_state_pieces)
             
             if move_info[0] is None or move_info[1] is None:
+                # This should ideally not happen if the move was generated correctly
                 print(f"STEP {path_steps + 1}: Error: Could not identify the moved piece. Stopping path.")
+                # Fallback: Just print the move from pieces list if possible
                 break
 
             from_pos = move_info[0][0:2]
             to_pos = move_info[1][0:2]
+            piece_id = move_info[0][2]
 
-            # 6. Apply the move to the chess board for simulation and visual printing
-            # This updates the underlying self.chess.board matrix
-            self.chess.movePiece(current_state_pieces, next_state_pieces)
+            move_sequence.append(f"{piece_id}:{from_pos} -> {to_pos}") #Store the move
+
+            # 6. Apply the move to the temporary chess board for simulation and visual printing
+            # This updates the underlying temp_aichess.chess.board matrix
+            temp_aichess.chess.movePiece(current_state_pieces, next_state_pieces)
 
             print(f"STEP {path_steps + 1}: Move from {from_pos} to {to_pos}")
-            self.chess.print_board()
+            temp_aichess.chess.print_board()
             
             # 7. Update for next iteration
             current_state_pieces = next_state_pieces
@@ -116,6 +141,10 @@ class Aichess():
 
         if path_steps == max_path_length:
             print(f"Path reconstruction stopped after {max_path_length} steps (max length reached).")
+
+        print("\n=== Optimal Move Sequence ===")
+        print(" -> ".join(move_sequence))
+        print("=============================\n")
         
         print("--------------------------------------------------------------------------")
 
@@ -857,7 +886,7 @@ if __name__ == "__main__":
     print("printing board")
     aichess.chess.print_board()
     #paco007 = paco(learning_rate=0.1, future_weight=0.9, exploration_rate=0.2)
-    paco007 = paco(learning_rate=0.9, future_weight=0.9, exploration_rate=0.9)
-    aichess.qLearningChess(agent=paco007, num_episodes=3000, max_steps_per_episode=200, reward_func='heuristic', stochasticity=0.1)
+    paco007 = paco(learning_rate=0.7, future_weight=0.9, exploration_rate=0.9)
+    aichess.qLearningChess(agent=paco007, num_episodes=2000, max_steps_per_episode=200, reward_func='simple', stochasticity=0.0)
 
     
