@@ -302,7 +302,7 @@ class Aichess():
             done = False
             total_reward = 0
             
-            # OPTIMITZACIÓ: Calculem la clau inicial només un cop a l'inici de l'episodi
+
             state_key = self.state_to_key(current_state)
 
             print(f"--- (inici) ---")
@@ -338,7 +338,9 @@ class Aichess():
 
                 if bk_state is None:
                     # El rei ha estat capturat -> Volem checkmate, no victoria
-                    reward = 0
+
+                    #Si volem victoria descomentar
+                    reward = 100
                     #reward = -50
                     done = True
                 else:
@@ -357,7 +359,7 @@ class Aichess():
                         done = True                   
 
                     if is_draw:
-                        reward = -30
+                        reward = -50
                         done = True 
                    
                 
@@ -393,9 +395,11 @@ class Aichess():
             print(f"--- Episode {episode+1} (Reward: {total_reward}) ---")
             self.chess.print_board()
             
-            if episode < 5 or episode % 300 == 0: 
-                agent.reduce_exploration_rate_by_decrease_rate()
-                #time.sleep(1) 
+            if episode % 200 == 0: 
+                agent.reduce_exploration_rate_by_decrease_rate() 
+
+            if episode % 1000 == 0: 
+                agent.reduce_exploration_rate_by_30_percent() 
         
         print("\n" + "="*80)
         print("  Final PATH  ")
@@ -512,8 +516,6 @@ class Aichess():
     """   
     def isBkcheched(self, currentState):
 
-        # boardSim already deprecated
-
         bkPosition = self.getPieceState(currentState, 12)[0:2]
         wkState = self.getPieceState(currentState, 6)
         wrState = self.getPieceState(currentState, 2)
@@ -596,10 +598,6 @@ class Aichess():
             if not self.isWatchedBk(state):
                 allWatched = False
                 break
-
-
-        # Restore the original board state
-        # boardSim already deprecated
         return allWatched
 
     def isBlackInCheckMate(self, currentState):
@@ -695,7 +693,6 @@ class Aichess():
     -----------------------------------------------------------------------------------------------------------
     """   
     def heuristica(self, state, step):
-
         # Mirem quin és el rook o King 
         # i els definim
         if state[0][2] == 2:
@@ -712,16 +709,21 @@ class Aichess():
         colDiff = abs(kingPosition[1] - 4)
         # The minimum of row and column differences corresponds to diagonal moves,
         # and the absolute difference corresponds to remaining straight moves
-        hKing = min(rowDiff, colDiff) + abs(rowDiff - colDiff)
+        dist = (min(rowDiff, colDiff) + abs(rowDiff - colDiff))
 
+        if dist == 0:
+            hKing = 100  # Valor alt perquè ja ha arribat
+        else:
+            # Multipliquem per 3 (o el pes que vulguis) per donar-li valor
+            hKing = 10 * (dist)**-1
 
 
         # Calculate the Manhattan distance for the ROOK to reach the target configuration (0,0)
         rowDiff = rookPosition[0]
-        colDiff = kingPosition[1]
+        colDiff = rookPosition[1]
         # The minimum of row and column differences corresponds to diagonal moves,
         # and the absolute difference corresponds to remaining straight moves
-        hRook = min(rowDiff, colDiff) + abs(rowDiff - colDiff)
+        dist = min(rowDiff, colDiff) + abs(rowDiff - colDiff)
 
         # Heuristic for the rook, with three different cases
         """
@@ -736,72 +738,21 @@ class Aichess():
            we give a small penalty (-1 times the inverse of the distance)
         4. In all other cases, we give a significant penalty (-10)
         """
-        if rookPosition[0] == 0 and rookPosition[1] == 0:
-            hRook = 3 * (hRook)**-1
+        if dist == 0:
+            hRook = 100
+
         elif rookPosition[0] == 0 and (rookPosition[1] < 3 or rookPosition[1] > 5):
-            hRook = 1 *(hRook)**-1
-        elif rookPosition[0] != 0 and 6 <= rookPosition[1] <= 2:
-            hRook = -1 * (hRook)**-1
+            hRook = -2 *(dist)**-1
+
+        elif rookPosition[0] < 2 and 2 <= rookPosition[1] <= 6:
+            hRook = -4 * (dist)**-1
+
         else:
-            hRook = -10
+            hRook = -500
 
         # Total heuristic is the sum of king 3and rook heuristics
-        return hKing + hRook - step
+        return hKing + hRook - (10*step)
 
-
-    def verify_single_piece_moved(self, state_before, state_after):
-        """
-        Mètode per verificar que nomes es mogui una peça
-
-        Returns: bool: True si només una peça ha canviat de lloc, False altrament.
-        """
-        # Mirem quantes peces del estat inicial ja no estàn al estat final
-        moved_pieces_count = 0
-        for piece_position in state_before:
-            if piece_position not in state_after:
-                moved_pieces_count += 1
-
-        
-        return moved_pieces_count == 1
-
-
-
-    def is_legal_transition(self, current_player_state, rival_state, moves, color):
-        """
-        Construeix un estat futur i comprova si la transició és legal.
-
-        Returns: bool: (es legal==True), tupla: next_node
-        """
-
-        # Verifiquem que la llista de moviments proposada ('moves') només implica
-        # el moviment d'una única peça.
-        if not self.verify_single_piece_moved(current_player_state, moves):
-            return False, None
-
-        # Obtenim la informació del moviment per identificar possibles captures
-        move_info = self.getMovement(current_player_state, moves)
-        #Comprovació de seguretat
-        if move_info[0] is None or move_info[1] is None:
-            return False, None 
-
-        # Comprovació de captura
-        new_pos_coords = move_info[1][0:2]
-        # Eliminem la peça rival si ha estat capturada
-        new_rival_state = [p for p in rival_state if p[0:2] != new_pos_coords]
-
-
-        # Construïm el node (estat) complet del següent moviment
-        next_node = moves + new_rival_state
-
-        # Comprovació de legalitat: el rei, del color que mou, no pot quedar/estar en escac
-        if color and self.isWatchedWk(next_node):
-            return False, None  
-        
-        if not color and self.isWatchedBk(next_node):
-            return False, None  
-
-        # Si totes les comprovacions passen, el moviment és legal
-        return True, next_node
 
     def is_Draw(self, current_state):
         """
@@ -987,7 +938,7 @@ if __name__ == "__main__":
     print("printing board")
     aichess.chess.print_board()
     #paco007 = paco(learning_rate=0.1, future_weight=0.9, exploration_rate=0.2)
-    paco007 = paco(learning_rate=0.7, future_weight=0.9, exploration_rate=0.7)
-    aichess.qLearningChess(agent=paco007, num_episodes=1000, max_steps_per_episode=200, reward_func='heuristic', stochasticity=0.1)
+    paco007 = paco(learning_rate=0.9, future_weight=0.9, exploration_rate=0.9)
+    aichess.qLearningChess(agent=paco007, num_episodes=2000, max_steps_per_episode=200, reward_func='heuristic', stochasticity=0.1)
 
     

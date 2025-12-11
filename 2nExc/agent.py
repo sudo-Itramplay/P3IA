@@ -52,9 +52,9 @@ class Agent:
         if self.alpha > 0.1:
             self.alpha-=self.decrease_rate
 
-    def reduce_exploration_rate_by_10_percent(self):
+    def reduce_exploration_rate_by_30_percent(self):
         if self.epsilon > 0.1:
-            self.epsilon-=0.1   
+            self.epsilon-=0.3   
                                                                                                     
     def reduce_exploration_rate_by_decrease_rate(self):
         # TODO es podria fer aleatori pq no fos tant agressiu, igual que amb el policy alhora de fer explore o maxQ
