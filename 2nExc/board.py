@@ -335,6 +335,76 @@ class Board:
                     break
         return [piece_state, piece_next_state]
 
+    def _is_square_attacked_by_rook(self, square, rooks, occupancy):
+        """Comprova si una casella (fila,col) està atacada per alguna torre segons ocupació."""
+        sr, sc = square
+        for rr, rc, _ in rooks:
+            if rr == sr:
+                step = 1 if rc < sc else -1
+                blocked = any(((rr, cc) in occupancy) for cc in range(rc + step, sc, step))
+                if not blocked:
+                    return True
+            if rc == sc:
+                step = 1 if rr < sr else -1
+                blocked = any(((rrr, rc) in occupancy) for rrr in range(rr + step, sr, step))
+                if not blocked:
+                    return True
+        return False
+
+    def _is_square_attacked_by_king(self, square, kings):
+        """Comprova si una casella (fila,col) és adjacient a un rei rival (atac de rei)."""
+        sr, sc = square
+        for kr, kc, _ in kings:
+            if max(abs(sr - kr), abs(sc - kc)) == 1:
+                return True
+        return False
+
+    def isWatchedBk(self, currentState):
+        # 1. Get the Black King's position and ensure it is a Numpy array
+        # This solves the "tuple implies no subtraction" error and enables math operations
+        bkPosition = np.array(self.getPieceState(currentState, 12)[0:2])
+        
+        wkState = self.getPieceState(currentState, 6)
+        wrState = self.getPieceState(currentState, 2)
+
+        # --- WHITE KING (WK) LOGIC ---
+        if wkState is not None:
+            # Extract WK position (assuming the first two elements are x, y)
+            wkPosition = np.array(wkState[0:2])
+            
+            # Calculate distance between kings (Chebyshev distance)
+            # max(|x1 - x2|, |y1 - y2|)
+            dist = np.max(np.abs(wkPosition - bkPosition))
+
+            # Check if the White King is within distance 2 of the Black King
+            if dist <= 2:
+                return True
+
+        # --- WHITE ROOK (WR) LOGIC ---
+        if wrState is not None:
+            # Extract WR position
+            wrPosition = np.array(wrState[0:2])
+            
+            # Check if they share the same row or column
+            # wrPosition[0] refers to the row/x, wrPosition[1] refers to the col/y
+            if wrPosition[0] == bkPosition[0] or wrPosition[1] == bkPosition[1]:
+                return True
+
+        return False
+
+    def isWatchedWk(self, current_state):
+        """Indica si el rei blanc està en escac (casella atacada per rei/torre negra)."""
+        wk = self.getPieceState(current_state, 6)
+        if wk is None:
+            return False
+        black_state = self.getBlackState(current_state)
+        bk = self.getPieceState(current_state, 12)
+        br = self.getPieceState(current_state, 8)
+        black_rooks = [br] if br else []
+        black_kings = [bk] if bk else []
+        occupancy = {(r, c) for r, c, _ in current_state}
+        return self._is_square_attacked_by_king(wk[0:2], black_kings) or self._is_square_attacked_by_rook(wk[0:2], black_rooks, occupancy)
+
     def is_legal_transition(self, current_player_state, rival_state, moves, color):
         """Construeix l'estat següent i valida moviment únic i rei propi fora d'escac."""
         if not self.verify_single_piece_moved(current_player_state, moves):

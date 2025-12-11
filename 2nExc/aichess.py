@@ -348,14 +348,14 @@ class Aichess():
                     is_draw = self.is_Draw(final_next_state)
                     
                     if reward_func == 'heuristic':
-                        #reward = self.heuristica(final_next_state, True)
-                        reward = self.heuristica(final_next_state, step)
-                    elif is_checkmate:
-                        reward += 100
-                        done = True                   
+                        reward = self.heuristica(final_next_state, step)                
                     elif reward_func == 'simple':
                         reward = -2 
 
+
+                    if is_checkmate:
+                        reward += 100
+                        done = True   
                     if is_draw:
                         reward = -30
                         done = True 
@@ -393,9 +393,8 @@ class Aichess():
             print(f"--- Episode {episode+1} (Reward: {total_reward}) ---")
             self.chess.print_board()
             
-            if episode < 5 or episode % 300 == 0: 
+            if episode % 100 == 0: 
                 agent.reduce_exploration_rate_by_decrease_rate()
-                #time.sleep(1) 
         
         print("\n" + "="*80)
         print("  Final PATH  ")
@@ -511,32 +510,7 @@ class Aichess():
     -----------------------------------------------------------------------------------------------------------
     """   
     def isWatchedBk(self, currentState):
-        # 1. Get the Black King's position and ensure it is a Numpy array
-        # This solves the "tuple implies no subtraction" error and enables math operations
-        bkPosition = np.array(self.getPieceState(currentState, 12)[0:2])
-        
-        wkState = self.getPieceState(currentState, 6)
-        wrState = self.getPieceState(currentState, 2)
-
-        # --- WHITE KING (WK) LOGIC ---
-        if wkState is not None:
-            wkPosition = np.array(wkState[0:2])
-            
-            dist = np.max(np.abs(wkPosition - bkPosition))
-
-            # Check if the White King is within distance 2 of the Black King
-            if dist <= 2:
-                return True
-
-        # --- WHITE ROOK (WR) LOGIC ---
-        if wrState is not None:
-            wrPosition = np.array(wrState[0:2])
-            
-            # Check if they share the same row or column
-            if wrPosition[0] == bkPosition[0] or wrPosition[1] == bkPosition[1]:
-                return True
-
-        return False
+        return self.chess.isWatchedBk(currentState)
 
     def allBkMovementsWatched(self, currentState):
         # In this method, we check if the black king is threatened by the white pieces
@@ -550,24 +524,21 @@ class Aichess():
         whiteState = self.getWhiteState(currentState)
         allWatched = True
         # Get the future states of the black pieces
-        nextBStates = self.getListNextStatesB(self.getBlackState(currentState))
+        nextBStates = self.chess.getListNextStatesB(self.chess.getBlackState(currentState))
 
         for state in nextBStates:
             newWhiteState = whiteState.copy()
             # Check if the white rook has been captured; if so, remove it from the state
-            if wrState is not None and wrState[0:2] == state[0][0:2]:
+            if wrState is None:
                 newWhiteState.remove(wrState)
             state = state + newWhiteState
             # Move the black pieces to the new state
-            # boardSim already deprecated
 
             # Check if in this position the black king is not threatened; 
             # if so, not all its moves are under threat
             if not self.isWatchedBk(state):
                 allWatched = False
                 break
-        # Restore the original board state
-        # boardSim already deprecated
         return allWatched
 
     def isBlackInCheckMate(self, currentState):
@@ -714,62 +685,8 @@ class Aichess():
             hRook = -10
 
         # Total heuristic is the sum of king 3and rook heuristics
-        return hKing + hRook - step
+        return hKing + hRook - 2*step
 
-
-    def verify_single_piece_moved(self, state_before, state_after):
-        """
-        Mètode per verificar que nomes es mogui una peça
-
-        Returns: bool: True si només una peça ha canviat de lloc, False altrament.
-        """
-        # Mirem quantes peces del estat inicial ja no estàn al estat final
-        moved_pieces_count = 0
-        for piece_position in state_before:
-            if piece_position not in state_after:
-                moved_pieces_count += 1
-
-        
-        return moved_pieces_count == 1
-
-
-
-    def is_legal_transition(self, current_player_state, rival_state, moves, color):
-        """
-        Construeix un estat futur i comprova si la transició és legal.
-
-        Returns: bool: (es legal==True), tupla: next_node
-        """
-
-        # Verifiquem que la llista de moviments proposada ('moves') només implica
-        # el moviment d'una única peça.
-        if not self.verify_single_piece_moved(current_player_state, moves):
-            return False, None
-
-        # Obtenim la informació del moviment per identificar possibles captures
-        move_info = self.getMovement(current_player_state, moves)
-        #Comprovació de seguretat
-        if move_info[0] is None or move_info[1] is None:
-            return False, None 
-
-        # Comprovació de captura
-        new_pos_coords = move_info[1][0:2]
-        # Eliminem la peça rival si ha estat capturada
-        new_rival_state = [p for p in rival_state if p[0:2] != new_pos_coords]
-
-
-        # Construïm el node (estat) complet del següent moviment
-        next_node = moves + new_rival_state
-
-        # Comprovació de legalitat: el rei, del color que mou, no pot quedar/estar en escac
-        if color and self.isWatchedWk(next_node):
-            return False, None  
-        
-        if not color and self.isWatchedBk(next_node):
-            return False, None  
-
-        # Si totes les comprovacions passen, el moviment és legal
-        return True, next_node
 
     def is_Draw(self, current_state):
         """
