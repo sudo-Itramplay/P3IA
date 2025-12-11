@@ -1,0 +1,5 @@
+# Ignorar fitxers compilats de Python (.pyc)
+*.pyc
+
+# Ignorar carpetes de memòria cau de Python (__pycache__)
+__pycache__/
