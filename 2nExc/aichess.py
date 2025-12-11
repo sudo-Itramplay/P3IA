@@ -13,20 +13,16 @@ import numpy as np
 from typing import List
 from agent import Agent  as paco
 
-
 RawStateType = List[List[List[int]]]
 
 from itertools import permutations
-
 
 class Aichess():
     """
     A class to represent the game of chess.
 
     """
-
     def __init__(self):
-
 
         self.chess = board.Board()
 
@@ -38,8 +34,91 @@ class Aichess():
         self.dictPath = {}
         # Prepare a dictionary to control the visited state and at which
         # depth they were found for DepthFirstSearchOptimized
-        self.dictVisitedStates = {}     
+        self.dictVisitedStates = {}  
+        self.best_reward = -float('inf')
+        self.min_steps_for_best_reward = float('inf')
+        self.optimal_path_key = None
+    
+    # In file: 2nExc/aichess.py
+
+    def print_optimal_path_from_qtable(self, agent):
+        """
+        Reconstructs and prints the optimal path based on the final Q-table, 
+        starting from the initial state of the board.
+        """
+        print(f"\nOptimal Path (Greedy Policy from Q-Table, Max Reward Found: {self.best_reward})")
+        print("--------------------------------------------------------------------------")
+
+        # Set up a temporary board to simulate the optimal path
+        self.chess.reset_environment()
+        current_state_pieces = self.chess.getCurrentState()
+        state_key = self.state_to_key(current_state_pieces)
         
+        path_steps = 0
+        # Safety break to prevent infinite loops in non-terminal states
+        max_path_length = self.min_steps_for_best_reward + 50 if self.min_steps_for_best_reward != float('inf') else 100 
+        
+        print(f"STARTING POSITION (Initial State):")
+        self.chess.print_board()
+
+        while path_steps < max_path_length:
+            
+            # 1. Check for termination condition
+            # Check if Black King (ID 12) is captured
+            bk_state = self.getPieceState(current_state_pieces, 12)
+            if bk_state is None:
+                print(f"STEP {path_steps + 1}: Checkmate! (Goal Reached)")
+                break
+
+            # 2. Get all legal next states from the current position
+            # Color is True (White's turn) as Q-Learning agent always moves white
+            legal_next_states = self.chess.get_all_next_states(current_state_pieces, True)
+            
+            if not legal_next_states:
+                print(f"STEP {path_steps + 1}: Stalemate/No Legal Moves (Path Ended)")
+                break
+            
+            num_actions = len(legal_next_states)
+            
+            # 3. Use the Q-table to find the best action (greedy choice)
+            # max_Q is defined in agent.py and takes state_key and num_actions
+            action_index = agent.max_Q(state_key, num_actions) 
+            
+            if action_index < 0 or action_index >= num_actions:
+                print(f"STEP {path_steps + 1}: Error: Policy returned invalid action index {action_index}. Stopping path.")
+                break
+            
+            # 4. Determine the next state based on the greedy action
+            next_state_pieces = legal_next_states[action_index]
+            
+            # 5. Get the movement information for printing
+            # self.getMovement requires access to the full piece lists
+            move_info = self.getMovement(current_state_pieces, next_state_pieces)
+            
+            if move_info[0] is None or move_info[1] is None:
+                print(f"STEP {path_steps + 1}: Error: Could not identify the moved piece. Stopping path.")
+                break
+
+            from_pos = move_info[0][0:2]
+            to_pos = move_info[1][0:2]
+
+            # 6. Apply the move to the chess board for simulation and visual printing
+            # This updates the underlying self.chess.board matrix
+            self.chess.movePiece(current_state_pieces, next_state_pieces)
+
+            print(f"STEP {path_steps + 1}: Move from {from_pos} to {to_pos}")
+            self.chess.print_board()
+            
+            # 7. Update for next iteration
+            current_state_pieces = next_state_pieces
+            state_key = self.state_to_key(current_state_pieces)
+            path_steps += 1
+
+        if path_steps == max_path_length:
+            print(f"Path reconstruction stopped after {max_path_length} steps (max length reached).")
+        
+        print("--------------------------------------------------------------------------")
+
     def debug_episode(self, episode, current_state, reward, action_index, legal_next_states, final_next_state, is_checkmate, is_draw, step):
         """
         Debug function to print detailed information about each episode and step
@@ -213,6 +292,7 @@ class Aichess():
         """
         # Estat inicial del tauler
         initial_state = self.chess.getCurrentState() 
+        initial_state_key = self.state_to_key(initial_state)
 
         for episode in range(num_episodes):
             self.chess.reset_environment()
@@ -291,6 +371,15 @@ class Aichess():
                 if done:
                     break
 
+                        
+            #Search for the betst path to get to checkmate
+            if total_reward > self.best_reward or \
+               (total_reward == self.best_reward and step + 1 < self.min_steps_for_best_reward):
+                
+                self.best_reward = total_reward
+                self.min_steps_for_best_reward = step + 1
+                self.optimal_path_key = initial_state_key
+
             print(f"--- (FINAL) ---")
             print(f"--- Episode {episode+1} (Reward: {total_reward}) ---")
             self.chess.print_board()
@@ -298,6 +387,11 @@ class Aichess():
             if episode < 5 or episode % 100 == 0: 
                 time.sleep(1) 
         
+        print("\n" + "="*80)
+        print("  Final PATH  ")
+        print("="*80)
+        self.print_optimal_path_from_qtable(agent)
+                
         return agent.q_table
 
     def getMovement(self, state, nextState):
@@ -881,6 +975,6 @@ if __name__ == "__main__":
     print("printing board")
     aichess.chess.print_board()
     paco007 = paco(learning_rate=0.1, future_weight=0.9, exploration_rate=0.2)
-    aichess.qLearningChess(agent=paco007, num_episodes=3000, max_steps_per_episode=200, reward_func='heuristic', stochasticity=0.1)
+    aichess.qLearningChess(agent=paco007, num_episodes=50, max_steps_per_episode=200, reward_func='simple', stochasticity=0.1)
 
     

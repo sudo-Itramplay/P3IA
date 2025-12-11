@@ -128,25 +128,32 @@ class Board:
 
     def print_board(self):
         """Mostra el tauler de joc de forma visual per consola."""
+        # Set consistent width based on | S | format (3 visible characters per cell, plus start/end |)
         print("-" * (self.cols * 4 + 1))
         for r in range(self.rows):
-            row_display = "| "
+            row_display = ""
             for c in range(self.cols):
                 cell_value = self.board[r, c]
-                
-                if (r, c) == self.currentStateW:
-                    symbol = "K " 
-                elif (r, c) == self.currentStateB: #Millor comprovar coord que valor
-                    symbol = "100" 
-                elif cell_value == -1:
-                    symbol = "- "
+                symbol_display = ""
+                if cell_value != -1 and hasattr(cell_value, '__str__'):
+                    #We use te propeerty of the peices to now the symbol, K R and its proper color
+                    symbol = str(cell_value)
+                    #This will print white pieces
+                    if hasattr(cell_value, 'color') and cell_value.color:
+                        symbol_display = f"{symbol} " 
+                    else:
+                        #This will print black pieces, we print 100, but could print symbol as the cell calue K in black
+                        symbol_display = 100
                 else:
-                    symbol = "? " 
+                    #if the value of the cell is -1 we print -
+                    symbol_display = "- " 
                 
-                row_display += f"{symbol} | " if symbol != "100" else f"{symbol}| "
+                # Each cell starts with a separator: | Symbol
+                row_display += f"| {symbol_display}"
+            
+            row_display += " |" # Final separator
             print(row_display)
             print("-" * (self.cols * 4 + 1))
-        
 
     def is_finish(self):
         """Comprova si el rei blanc ha arribat a la casella objectiu."""
@@ -183,26 +190,27 @@ class Board:
     def reset_environment(self, rows=8, cols=8, currentStateWK=(7,3), currentStateBK=(0,4), currentStateWR=(7,0)):
         """Inicialitza un tauler d'escacs 8x8 amb Rei Blanc a (7,3) i Rei Negre a (0,4)."""
 
-        if self.initState is None:
-            self.rows = rows
-            self.cols = cols
-            
-            # Inicialitzem amb dtype=object per poder guardar números i peces
-            self.board = np.full((rows, cols), -1, dtype=object)
-            
-            self.currentStateW = (currentStateWK, currentStateWR)
-            self.currentStateB = currentStateBK
+        #TODO I've comented this condition
+        #if self.initState is None:
+        self.rows = rows
+        self.cols = cols
+        
+        # Inicialitzem amb dtype=object per poder guardar números i peces
+        self.board = np.full((rows, cols), -1, dtype=object)
+        
+        self.currentStateW = (currentStateWK, currentStateWR)
+        self.currentStateB = currentStateBK
 
 
-            #Posem posició dels blancs
-            # Posem el Rei Blanc a la posició W
-            self.board[self.currentStateW[0]] = piece.King(True)
-            # Posem el Rook Blanc a la posició W1
-            self.board[self.currentStateW[1]] = piece.Rook(True)
-            # Posem el Rei Negre (Objectiu) a la posició B
-            self.board[self.currentStateB] = piece.King(False)
+        #Posem posició dels blancs
+        # Posem el Rei Blanc a la posició W
+        self.board[self.currentStateW[0]] = piece.King(True)
+        # Posem el Rook Blanc a la posició W1
+        self.board[self.currentStateW[1]] = piece.Rook(True)
+        # Posem el Rei Negre (Objectiu) a la posició B
+        self.board[self.currentStateB] = piece.King(False)
 
-            self.initState = 1
+        self.initState = 1
 
     # --------------------------------------------------------------------------------------------------
     # Chess helper utilities (ported from aichess.py)
