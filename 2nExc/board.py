@@ -335,56 +335,6 @@ class Board:
                     break
         return [piece_state, piece_next_state]
 
-    def _is_square_attacked_by_rook(self, square, rooks, occupancy):
-        """Comprova si una casella (fila,col) està atacada per alguna torre segons ocupació."""
-        sr, sc = square
-        for rr, rc, _ in rooks:
-            if rr == sr:
-                step = 1 if rc < sc else -1
-                blocked = any(((rr, cc) in occupancy) for cc in range(rc + step, sc, step))
-                if not blocked:
-                    return True
-            if rc == sc:
-                step = 1 if rr < sr else -1
-                blocked = any(((rrr, rc) in occupancy) for rrr in range(rr + step, sr, step))
-                if not blocked:
-                    return True
-        return False
-
-    def _is_square_attacked_by_king(self, square, kings):
-        """Comprova si una casella (fila,col) és adjacient a un rei rival (atac de rei)."""
-        sr, sc = square
-        for kr, kc, _ in kings:
-            if max(abs(sr - kr), abs(sc - kc)) == 1:
-                return True
-        return False
-
-    def isWatchedBk(self, current_state):
-        """Indica si el rei negre està en escac (casella atacada per rei/torre blanca)."""
-        bk = self.getPieceState(current_state, 12)
-        if bk is None:
-            return False
-        white_state = self.getWhiteState(current_state)
-        wk = self.getPieceState(current_state, 6)
-        wr = self.getPieceState(current_state, 2)
-        white_rooks = [wr] if wr else []
-        white_kings = [wk] if wk else []
-        occupancy = {(r, c) for r, c, _ in current_state}
-        return self._is_square_attacked_by_king(bk[0:2], white_kings) or self._is_square_attacked_by_rook(bk[0:2], white_rooks, occupancy)
-
-    def isWatchedWk(self, current_state):
-        """Indica si el rei blanc està en escac (casella atacada per rei/torre negra)."""
-        wk = self.getPieceState(current_state, 6)
-        if wk is None:
-            return False
-        black_state = self.getBlackState(current_state)
-        bk = self.getPieceState(current_state, 12)
-        br = self.getPieceState(current_state, 8)
-        black_rooks = [br] if br else []
-        black_kings = [bk] if bk else []
-        occupancy = {(r, c) for r, c, _ in current_state}
-        return self._is_square_attacked_by_king(wk[0:2], black_kings) or self._is_square_attacked_by_rook(wk[0:2], black_rooks, occupancy)
-
     def is_legal_transition(self, current_player_state, rival_state, moves, color):
         """Construeix l'estat següent i valida moviment únic i rei propi fora d'escac."""
         if not self.verify_single_piece_moved(current_player_state, moves):

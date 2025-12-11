@@ -511,28 +511,30 @@ class Aichess():
     -----------------------------------------------------------------------------------------------------------
     """   
     def isWatchedBk(self, currentState):
-
-        # boardSim already deprecated
-
-        bkPosition = self.getPieceState(currentState, 12)[0:2]
+        # 1. Get the Black King's position and ensure it is a Numpy array
+        # This solves the "tuple implies no subtraction" error and enables math operations
+        bkPosition = np.array(self.getPieceState(currentState, 12)[0:2])
+        
         wkState = self.getPieceState(currentState, 6)
         wrState = self.getPieceState(currentState, 2)
 
-        # If the white king has been captured, this is not a valid configuration
-        if wkState is None:
-            return False
+        # --- WHITE KING (WK) LOGIC ---
+        if wkState is not None:
+            wkPosition = np.array(wkState[0:2])
+            
+            dist = np.max(np.abs(wkPosition - bkPosition))
 
-        # Check all possible moves of the white king to see if it can capture the black king
-        for wkPosition in self.getNextPositions(wkState):
-            if bkPosition == wkPosition:
-                # Black king would be in check
+            # Check if the White King is within distance 2 of the Black King
+            if dist <= 2:
                 return True
 
+        # --- WHITE ROOK (WR) LOGIC ---
         if wrState is not None:
-            # Check all possible moves of the white rook to see if it can capture the black king
-            for wrPosition in self.getNextPositions(wrState):
-                if bkPosition == wrPosition:
-                    return True
+            wrPosition = np.array(wrState[0:2])
+            
+            # Check if they share the same row or column
+            if wrPosition[0] == bkPosition[0] or wrPosition[1] == bkPosition[1]:
+                return True
 
         return False
 
@@ -544,29 +546,26 @@ class Aichess():
         bkState = self.getPieceState(currentState, 12)
         allWatched = False
 
-        # If the black king is on the edge of the board, all its moves might be under threat
-        if bkState[0] == 0 or bkState[0] == 7 or bkState[1] == 0 or bkState[1] == 7:
-            wrState = self.getPieceState(currentState, 2)
-            whiteState = self.getWhiteState(currentState)
-            allWatched = True
-            # Get the future states of the black pieces
-            nextBStates = self.getListNextStatesB(self.getBlackState(currentState))
+        wrState = self.getPieceState(currentState, 2)
+        whiteState = self.getWhiteState(currentState)
+        allWatched = True
+        # Get the future states of the black pieces
+        nextBStates = self.getListNextStatesB(self.getBlackState(currentState))
 
-            for state in nextBStates:
-                newWhiteState = whiteState.copy()
-                # Check if the white rook has been captured; if so, remove it from the state
-                if wrState is not None and wrState[0:2] == state[0][0:2]:
-                    newWhiteState.remove(wrState)
-                state = state + newWhiteState
-                # Move the black pieces to the new state
-                # boardSim already deprecated
+        for state in nextBStates:
+            newWhiteState = whiteState.copy()
+            # Check if the white rook has been captured; if so, remove it from the state
+            if wrState is not None and wrState[0:2] == state[0][0:2]:
+                newWhiteState.remove(wrState)
+            state = state + newWhiteState
+            # Move the black pieces to the new state
+            # boardSim already deprecated
 
-                # Check if in this position the black king is not threatened; 
-                # if so, not all its moves are under threat
-                if not self.isWatchedBk(state):
-                    allWatched = False
-                    break
-
+            # Check if in this position the black king is not threatened; 
+            # if so, not all its moves are under threat
+            if not self.isWatchedBk(state):
+                allWatched = False
+                break
         # Restore the original board state
         # boardSim already deprecated
         return allWatched
