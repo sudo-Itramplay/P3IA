@@ -337,11 +337,9 @@ class Aichess():
                 is_draw = False
 
                 if bk_state is None:
-                    # El rei ha estat capturat -> Volem checkmate, no victoria
-
-                    #Si volem victoria descomentar
-                    reward = 100
-                    #reward = -50
+                    # El rei ha estat capturat -> Volem checkmate, no victori
+                    #VOELMQ UE APREGNUI A NO MATAR EL REI
+                    reward = -500
                     done = True
                 else:
                     # El rei hi és, comprovem escac i mat o taules de forma segura
@@ -514,96 +512,17 @@ class Aichess():
     ###########################################################################################################
     -----------------------------------------------------------------------------------------------------------
     """   
-    def isBkcheched(self, currentState):
-
-        bkPosition = self.getPieceState(currentState, 12)[0:2]
-        wkState = self.getPieceState(currentState, 6)
-        wrState = self.getPieceState(currentState, 2)
-
-        # If the white king has been captured, this is not a valid configuration
-        if wkState is None:
-            return False
-
-        # Check all possible moves of the white king to see if it can capture the black king
-        for wkPosition in self.getNextPositions(wkState):
-            if bkPosition == wkPosition:
-                # Black king would be in check
-                return True
-
-        if wrState is not None:
-            # Check all possible moves of the white rook to see if it can capture the black king
-            for wrPosition in self.getNextPositions(wrState):
-                if bkPosition == wrPosition:
-                    return True
-
-        return False
-    
-    def isWatchedBk(self, currentState):
-        bkPos = self.getPieceState(currentState, 12)
-        wkPos = self.getPieceState(currentState, 6)
-        wrPos = self.getPieceState(currentState, 2)
-
-        bk_r, bk_c = bkPos[0], bkPos[1]
-
-        if wkPos is not None:
-            wk_r, wk_c = wkPos[0], wkPos[1]
-            
-            dist_row = abs(bk_r - wk_r)
-            dist_col = abs(bk_c - wk_c)
-            
-            # white king attacks black king if within one square in any direction
-            if max(dist_row, dist_col) <= 1:
-                return True
-
-        if wrPos is not None:
-            wr_r, wr_c = wrPos[0], wrPos[1]
-
-            
-            if bk_r == wr_r or bk_c == wr_c:
-                # It does return true even if there are pieces in between
-                # but in this simplified chess version there are no pieces in between
-                return True
-
-        return False
-
-    def allBkMovementsWatched(self, currentState):
-        # In this method, we check if the black king is threatened by the white pieces
-
-        # boardSim already deprecated
-        # Get the current state of the black king
-        #bkState = self.getPieceState(currentState, 12)
-        bkState = self.getBlackState(currentState)
-        allWatched = False
-
-
-
-        wrState = self.getPieceState(currentState, 2)
-        whiteState = self.getWhiteState(currentState)
-
-
-
-        allWatched = True
-        # Get the future states of the black pieces
-        tuple_blState = tuple(bkState)
-        nextBStates = self.getListNextStatesB(tuple_blState)
-
-        for state in nextBStates:
-            newWhiteState = whiteState.copy()
-            # Check if the white rook has been captured; if so, remove it from the state
-            if wrState is None:
-                newWhiteState.remove(wrState)
-            state = state + newWhiteState
-            # Check if in this position the black king is not threatened; 
-            # if so, not all its moves are under threat
-            if not self.isWatchedBk(state):
-                allWatched = False
-                break
-        return allWatched
 
     def isBlackInCheckMate(self, currentState):
-        if self.isWatchedBk(currentState) and self.allBkMovementsWatched(currentState):
-            return True
-
+        # Delegate check and mate detection to the superior board functions.
+        # Check: Is the Black King in check?
+        if self.chess.isWatchedBk(currentState):
+            # Mate: Does Black (color=False) have *any* legal moves left?
+            black_legal_moves = self.chess.get_all_next_states(currentState, False)
+            
+            # If Black is in check and has no legal moves, it's checkmate.
+            if not black_legal_moves:
+                return True
         return False
 
     """
@@ -939,6 +858,6 @@ if __name__ == "__main__":
     aichess.chess.print_board()
     #paco007 = paco(learning_rate=0.1, future_weight=0.9, exploration_rate=0.2)
     paco007 = paco(learning_rate=0.9, future_weight=0.9, exploration_rate=0.9)
-    aichess.qLearningChess(agent=paco007, num_episodes=2000, max_steps_per_episode=200, reward_func='heuristic', stochasticity=0.1)
+    aichess.qLearningChess(agent=paco007, num_episodes=3000, max_steps_per_episode=200, reward_func='heuristic', stochasticity=0.1)
 
     

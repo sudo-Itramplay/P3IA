@@ -145,7 +145,7 @@ class Board:
                     symbol = str(cell_value)
                     #This will print white pieces
                     if hasattr(cell_value, 'color') and cell_value.color:
-                        symbol_display = f"{BLUE}{BOLD}{symbol}{RESET} " 
+                        symbol_display = f"{BOLD}{symbol}{RESET} " 
                     else:
                         #This will print black pieces, we print 100, but could print symbol as the cell calue K in black
                         symbol_display = f"{RESET}{symbol}{RESET} "
@@ -419,7 +419,7 @@ class Board:
             rival_pieces = self.getBlackState(current_state)
             next_moves_raw = self.getListNextStatesW(current_player_pieces, rival_pieces)
         else:
-            #current_player_pieces = self.getBlackState(current_state)
+            current_player_pieces = self.getBlackState(current_state)
             rival_pieces = self.getWhiteState(current_state)
             next_moves_raw = self.getListNextStatesB(current_player_pieces, rival_pieces)
 
