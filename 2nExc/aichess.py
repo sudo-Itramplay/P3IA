@@ -321,7 +321,11 @@ class Aichess():
                 num_actions = len(legal_next_states)
                 
                 # Triem acció usant la clau actual
-                action_index = agent.policy(state_key, num_actions) 
+                if episode != (num_episodes-1):
+                    action_index = agent.policy(state_key, num_actions) 
+                else:
+                    action_index = agent.policy_last_iteration(state_key, num_actions) 
+
                 final_next_state = legal_next_states[action_index]
                 
                 # --- CORRECCIÓ PRINCIPAL ---
@@ -334,7 +338,9 @@ class Aichess():
 
                 if bk_state is None:
                     # El rei ha estat capturat -> VICTÒRIA
+                    # Si descomentem aquesta linia, la torre matarà el rei en 2 moviments
                     reward = 100
+                    #reward = -50
                     done = True
                 else:
                     # El rei hi és, comprovem escac i mat o taules de forma segura
@@ -342,15 +348,18 @@ class Aichess():
                     is_draw = self.is_Draw(final_next_state)
                     
                     if reward_func == 'heuristic':
-                        reward = self.heuristica(final_next_state, True)
-                    elif is_draw:
-                        reward = -30
-                        done = True
-                    elif reward_func == 'simple':
-                        reward = -1 
+                        #reward = self.heuristica(final_next_state, True)
+                        reward = self.heuristica(final_next_state, step)
                     elif is_checkmate:
-                        reward = 100
-                        done = True
+                        reward += 100
+                        done = True                   
+                    elif reward_func == 'simple':
+                        reward = -2 
+
+                    if is_draw:
+                        reward = -30
+                        done = True 
+                   
                 
                 total_reward += reward
                 
@@ -384,8 +393,9 @@ class Aichess():
             print(f"--- Episode {episode+1} (Reward: {total_reward}) ---")
             self.chess.print_board()
             
-            if episode < 5 or episode % 100 == 0: 
-                time.sleep(1) 
+            if episode < 5 or episode % 300 == 0: 
+                agent.reduce_exploration_rate_by_decrease_rate()
+                #time.sleep(1) 
         
         print("\n" + "="*80)
         print("  Final PATH  ")
@@ -653,88 +663,59 @@ class Aichess():
     ###########################################################################################################
     -----------------------------------------------------------------------------------------------------------
     """   
+    def heuristica(self, state, step):
 
-    # Aquest mètode ha d'estar aquí pq és necessari saber si està o no en chackmate per donar-las
-    def heuristica(self, currentState, color):
-        # This method calculates the heuristic value for the current state.
-        # The value is initially computed from White's perspective.
-        # If the 'color' parameter indicates Black(FALSE), the final value is multiplied by -1.
+        # Mirem quin és el rook o King 
+        # i els definim
+        if state[0][2] == 2:
+            kingPosition = state[1]
+            rookPosition = state[0]
+        else:
+            kingPosition = state[0]
+            rookPosition = state[1]
 
-        value = 0
+        # Example heuristic assusiming the target position for the king is (2,4).
 
-        bkState = self.getPieceState(currentState, 12)  # Black King
-        wkState = self.getPieceState(currentState, 6)   # White King
-        wrState = self.getPieceState(currentState, 2)   # White Rook
-        brState = self.getPieceState(currentState, 8)   # Black Rook
+        # Calculate the Manhattan distance for the king to reach the target configuration (2,4)
+        rowDiff = abs(kingPosition[0] - 2)
+        colDiff = abs(kingPosition[1] - 4)
+        # The minimum of row and column differences corresponds to diagonal moves,
+        # and the absolute difference corresponds to remaining straight moves
+        hKing = min(rowDiff, colDiff) + abs(rowDiff - colDiff)
 
-        filaBk, columnaBk = bkState[0], bkState[1]
-        filaWk, columnaWk = wkState[0], wkState[1]
 
-        if wrState is not None:
-            filaWr, columnaWr = wrState[0], wrState[1]
-        if brState is not None:
-            filaBr, columnaBr = brState[0], brState[1]
 
-        # If the black rook has been captured
-        if brState is None:
-            value += 50
-            fila = abs(filaBk - filaWk)
-            columna = abs(columnaWk - columnaBk)
-            distReis = min(fila, columna) + abs(fila - columna)
+        # Calculate the Manhattan distance for the ROOK to reach the target configuration (0,0)
+        rowDiff = rookPosition[0]
+        colDiff = kingPosition[1]
+        # The minimum of row and column differences corresponds to diagonal moves,
+        # and the absolute difference corresponds to remaining straight moves
+        hRook = min(rowDiff, colDiff) + abs(rowDiff - colDiff)
 
-            if distReis >= 3 and wrState is not None:
-                filaR = abs(filaBk - filaWr)
-                columnaR = abs(columnaWr - columnaBk)
-                value += (min(filaR, columnaR) + abs(filaR - columnaR)) / 10
+        # Heuristic for the rook, with three different cases
+        """
+        here we are rewarding the rook for beeing closer to the target (0,0)
 
-            # For White: the closer our king is to the opponent’s king, the better.
-            # Subtract 7 from the king-to-king distance since 7 is the maximum distance possible on the board.
-            value += (7 - distReis)
+        This reward is given based on distance to (0,0) plus an extra bonus
+        if it gets closer to the corner (0,0) or to the sides (0,3) or (0,5)
+        1. If the rook is at (0,0), we give a high reward (3 times the inverse of the distance)
+        2. If the rook is on the first row but not in the corners (0,3) or (0,5),
+           we give a moderate reward (1 times the inverse of the distance)
+        3. If the rook is not on the first row but is between columns 2 and 6,
+           we give a small penalty (-1 times the inverse of the distance)
+        4. In all other cases, we give a significant penalty (-10)
+        """
+        if rookPosition[0] == 0 and rookPosition[1] == 0:
+            hRook = 3 * (hRook)**-1
+        elif rookPosition[0] == 0 and (rookPosition[1] < 3 or rookPosition[1] > 5):
+            hRook = 1 *(hRook)**-1
+        elif rookPosition[0] != 0 and 6 <= rookPosition[1] <= 2:
+            hRook = -1 * (hRook)**-1
+        else:
+            hRook = -10
 
-            # If the black king is against a wall, prioritize pushing him into a corner (ideal for checkmate).
-            if bkState[0] in (0, 7) or bkState[1] in (0, 7):
-                value += (abs(filaBk - 3.5) + abs(columnaBk - 3.5)) * 10
-            # Otherwise, encourage moving the black king closer to the wall.
-            else:
-                value += (max(abs(filaBk - 3.5), abs(columnaBk - 3.5))) * 10
-
-        # If the white rook has been captured.
-        # The logic is similar to the previous section but with reversed (negative) values.
-        if wrState is None:
-            value -= 50
-            fila = abs(filaBk - filaWk)
-            columna = abs(columnaWk - columnaBk)
-            distReis = min(fila, columna) + abs(fila - columna)
-
-            if distReis >= 3 and brState is not None:
-                filaR = abs(filaWk - filaBr)
-                columnaR = abs(columnaBr - columnaWk)
-                value -= (min(filaR, columnaR) + abs(filaR - columnaR)) / 10
-
-            # For White: being closer to the opposing king is better.
-            # Subtract 7 from the distance since that’s the maximum possible distance.
-            value += (-7 + distReis)
-
-            # If the white king is against a wall, penalize that position.
-            if wkState[0] in (0, 7) or wkState[1] in (0, 7):
-                value -= (abs(filaWk - 3.5) + abs(columnaWk - 3.5)) * 10
-            # Otherwise, encourage the king to stay away from the wall.
-            else:
-                value -= (max(abs(filaWk - 3.5), abs(columnaWk - 3.5))) * 10
-
-        # If the black king is in check, reward this state.
-        if self.isWatchedBk(currentState):
-            value += 20
-
-        # If the white king is in check, penalize this state.
-        if self.isWatchedWk(currentState):
-            value -= 20
-
-        # If the current player is Black, invert the heuristic value.
-        if not color:
-            value *= -1
-
-        return value
+        # Total heuristic is the sum of king 3and rook heuristics
+        return hKing + hRook - step
 
 
     def verify_single_piece_moved(self, state_before, state_after):
@@ -974,7 +955,8 @@ if __name__ == "__main__":
     aichess = Aichess()
     print("printing board")
     aichess.chess.print_board()
-    paco007 = paco(learning_rate=0.1, future_weight=0.9, exploration_rate=0.2)
-    aichess.qLearningChess(agent=paco007, num_episodes=50, max_steps_per_episode=200, reward_func='simple', stochasticity=0.1)
+    #paco007 = paco(learning_rate=0.1, future_weight=0.9, exploration_rate=0.2)
+    paco007 = paco(learning_rate=0.7, future_weight=0.9, exploration_rate=0.7)
+    aichess.qLearningChess(agent=paco007, num_episodes=1000, max_steps_per_episode=200, reward_func='heuristic', stochasticity=0.1)
 
     

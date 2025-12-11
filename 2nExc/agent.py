@@ -77,6 +77,12 @@ class Agent:
             return self.explore(possible_actions_n)
         else:
             return self.max_Q(state, possible_actions_n)
+        
+    def policy_last_iteration(self, state, possible_actions_n):
+        """
+        Epsilon-Greedy Policy.
+        """
+        return self.max_Q(state, possible_actions_n)
 
     def learn(self, state, action, reward, next_state, done, n_actions_in_state):
         """
@@ -114,8 +120,11 @@ class Agent:
         """
         Retorna una acció aleatòria.
         """
+
+        """
         if random.random() < self.decrease_rate and self.decrease_rate > 0.1:
             self.epsilon -= 0.05
+        """
         return random.choice(self.actions)
         
     def max_Q(self, state, n_actions_in_state):
