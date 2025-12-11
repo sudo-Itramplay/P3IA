@@ -3,6 +3,11 @@ import piece as piece
 
 # Chess board dimensions
 BOARD_SIZE = 8
+RED   = "\033[91m"
+GREEN = "\033[92m"
+BLUE  = "\033[94m"
+BOLD  = "\033[1m"
+RESET = "\033[0m"
 
 class Board:
     initState = None
@@ -140,10 +145,11 @@ class Board:
                     symbol = str(cell_value)
                     #This will print white pieces
                     if hasattr(cell_value, 'color') and cell_value.color:
-                        symbol_display = f"{symbol} " 
+                        symbol_display = f"{BLUE}{BOLD}{symbol}{RESET} " 
                     else:
                         #This will print black pieces, we print 100, but could print symbol as the cell calue K in black
-                        symbol_display = 100
+                        symbol_display = f"{RESET}{symbol}{RESET} "
+
                 else:
                     #if the value of the cell is -1 we print -
                     symbol_display = "- " 
@@ -297,7 +303,7 @@ class Board:
         for idx, p in enumerate(my_state):
             candidate_positions = self._generate_moves_for_piece(p, my_state, rival_state)
             for new_pos in candidate_positions:
-                new_state = my_state.copy()
+                new_state = list(my_state)
                 new_state[idx] = new_pos
                 next_states.append(new_state)
         return next_states

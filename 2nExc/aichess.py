@@ -238,7 +238,7 @@ class Aichess():
         return self.chess.getListNextStatesW(myState, rivalState)
 
     def getListNextStatesB(self, myState, rivalState=None):
-        return self.chess.getListNextStatesB(myState, rivalState)
+        return self.chess.getListNextStatesB(myState)
     
     def get_all_next_states(self, current_state, color):
         return self.chess.get_all_next_states(current_state, color)
@@ -337,9 +337,8 @@ class Aichess():
                 is_draw = False
 
                 if bk_state is None:
-                    # El rei ha estat capturat -> VICTÒRIA
-                    # Si descomentem aquesta linia, la torre matarà el rei en 2 moviments
-                    reward = 100
+                    # El rei ha estat capturat -> Volem checkmate, no victoria
+                    reward = 0
                     #reward = -50
                     done = True
                 else:
@@ -348,13 +347,14 @@ class Aichess():
                     is_draw = self.is_Draw(final_next_state)
                     
                     if reward_func == 'heuristic':
-                        #reward = self.heuristica(final_next_state, True)
                         reward = self.heuristica(final_next_state, step)
-                    elif is_checkmate:
+
+                    elif reward_func == 'simple':
+                        reward = -2
+
+                    if is_checkmate:
                         reward += 100
                         done = True                   
-                    elif reward_func == 'simple':
-                        reward = -2 
 
                     if is_draw:
                         reward = -30
@@ -510,7 +510,7 @@ class Aichess():
     ###########################################################################################################
     -----------------------------------------------------------------------------------------------------------
     """   
-    def isWatchedBk(self, currentState):
+    def isBkcheched(self, currentState):
 
         # boardSim already deprecated
 
@@ -535,37 +535,68 @@ class Aichess():
                     return True
 
         return False
+    
+    def isWatchedBk(self, currentState):
+        bkPos = self.getPieceState(currentState, 12)
+        wkPos = self.getPieceState(currentState, 6)
+        wrPos = self.getPieceState(currentState, 2)
+
+        bk_r, bk_c = bkPos[0], bkPos[1]
+
+        if wkPos is not None:
+            wk_r, wk_c = wkPos[0], wkPos[1]
+            
+            dist_row = abs(bk_r - wk_r)
+            dist_col = abs(bk_c - wk_c)
+            
+            # white king attacks black king if within one square in any direction
+            if max(dist_row, dist_col) <= 1:
+                return True
+
+        if wrPos is not None:
+            wr_r, wr_c = wrPos[0], wrPos[1]
+
+            
+            if bk_r == wr_r or bk_c == wr_c:
+                # It does return true even if there are pieces in between
+                # but in this simplified chess version there are no pieces in between
+                return True
+
+        return False
 
     def allBkMovementsWatched(self, currentState):
         # In this method, we check if the black king is threatened by the white pieces
 
         # boardSim already deprecated
         # Get the current state of the black king
-        bkState = self.getPieceState(currentState, 12)
+        #bkState = self.getPieceState(currentState, 12)
+        bkState = self.getBlackState(currentState)
         allWatched = False
 
-        # If the black king is on the edge of the board, all its moves might be under threat
-        if bkState[0] == 0 or bkState[0] == 7 or bkState[1] == 0 or bkState[1] == 7:
-            wrState = self.getPieceState(currentState, 2)
-            whiteState = self.getWhiteState(currentState)
-            allWatched = True
-            # Get the future states of the black pieces
-            nextBStates = self.getListNextStatesB(self.getBlackState(currentState))
 
-            for state in nextBStates:
-                newWhiteState = whiteState.copy()
-                # Check if the white rook has been captured; if so, remove it from the state
-                if wrState is not None and wrState[0:2] == state[0][0:2]:
-                    newWhiteState.remove(wrState)
-                state = state + newWhiteState
-                # Move the black pieces to the new state
-                # boardSim already deprecated
 
-                # Check if in this position the black king is not threatened; 
-                # if so, not all its moves are under threat
-                if not self.isWatchedBk(state):
-                    allWatched = False
-                    break
+        wrState = self.getPieceState(currentState, 2)
+        whiteState = self.getWhiteState(currentState)
+
+
+
+        allWatched = True
+        # Get the future states of the black pieces
+        tuple_blState = tuple(bkState)
+        nextBStates = self.getListNextStatesB(tuple_blState)
+
+        for state in nextBStates:
+            newWhiteState = whiteState.copy()
+            # Check if the white rook has been captured; if so, remove it from the state
+            if wrState is None:
+                newWhiteState.remove(wrState)
+            state = state + newWhiteState
+            # Check if in this position the black king is not threatened; 
+            # if so, not all its moves are under threat
+            if not self.isWatchedBk(state):
+                allWatched = False
+                break
+
 
         # Restore the original board state
         # boardSim already deprecated
