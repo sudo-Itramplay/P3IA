@@ -8,12 +8,10 @@ Created on Thu Sep  8 11:22:03 2022
 import copy
 import math
 import board
-import time
+import random
 import numpy as np
 from typing import List
 from agent import Agent  as paco
-
-RawStateType = List[List[List[int]]]
 
 from itertools import permutations
 
@@ -38,19 +36,16 @@ class Aichess():
         self.best_reward = -float('inf')
         self.min_steps_for_best_reward = float('inf')
         self.optimal_path_key = None
+        self.qtables = {}
     
-    # In file: 2nExc/aichess.py
-
     def print_optimal_path_from_qtable(self, agent):
         """
-        Reconstructs and prints the optimal path based on the final Q-table, 
-        starting from the initial state of the board (greedy policy).
+        Prints the optimal path found, based on the Q-table developed by the agent.
         """
-        # Create a temporary environment to simulate the optimal path cleanly
         temp_aichess = Aichess()
-        temp_aichess.depthMax = self.depthMax # Inherit max depth if relevant
-        
-        print(f"\nOptimal Path (Greedy Policy from Q-Table, Max Reward Found: {self.best_reward}, Min Steps: {self.min_steps_for_best_reward})")
+        temp_aichess.depthMax = self.depthMax
+            
+        print(f"\nOptimal Path, Max Reward Found: {self.best_reward}, Number of Steps: {self.min_steps_for_best_reward}")
         print("--------------------------------------------------------------------------")
 
         temp_aichess.chess.reset_environment()
@@ -58,159 +53,81 @@ class Aichess():
         state_key = self.state_to_key(current_state_pieces)
         
         path_steps = 0
-        # Safety break to prevent infinite loops in non-terminal states
-        # Use min_steps_for_best_reward as a target length, plus a buffer
+        #We try and prevent looping
         max_path_length = self.min_steps_for_best_reward + 50 if self.min_steps_for_best_reward != float('inf') else 100 
 
         move_sequence = []
         
-        print(f"STARTING POSITION (Initial State):")
+        print(f"Initial State:")
         temp_aichess.chess.print_board()
 
         while path_steps < max_path_length:
             
-            # 1. Check for termination condition
-            # Check if Black King (ID 12) is captured
+            #We keep the track if the black king gets eaten, in which case we stop
             bk_state = self.getPieceState(current_state_pieces, 12)
             if bk_state is None:
-                print(f"STEP {path_steps}: GOAL REACHED (Black King Captured).")
+                print(f"step {path_steps}: THE BLACK KING HAS BEEN CAPTURED. Ending path. BAD APPROACH")
                 break
 
-            # Check for Checkmate (goal state learned by the agent)
-            # We use the main instance's checkmate logic here, as it's the one that knows the rules
+            #We seach fo the chakemate condition, the proper goal, instead of eating the black king
             is_checkmate = temp_aichess.isBlackInCheckMate(current_state_pieces)
             if is_checkmate:
-                # If the agent achieved checkmate on the previous step, the current state
-                # is the checkmate state.
-                print(f"STEP {path_steps}: CHECKMATE! (Goal State).")
+                #If the agent has achieved checkmate, we stop
+                print(f"step {path_steps}: CHECKMATE! (Goal State).")
                 break
 
-            # 2. Get all legal next states from the current position
-            # Color is True (White's turn) as Q-Learning agent always moves white
-            # Use temp_aichess to respect the internal state of the board for legality checks
+            #At last we check for draw conditions, stalemtes that shoudn't happen, at least not frequently.
             legal_next_states = temp_aichess.chess.get_all_next_states(current_state_pieces, True)
             
             if not legal_next_states:
-                print(f"STEP {path_steps}: Stalemate/No Legal Moves (Path Ended).")
+                print(f"step {path_steps}: Stalemate.")
                 break
             
             num_actions = len(legal_next_states)
             
-            # 3. Use the Q-table to find the best action (greedy choice)
-            # Use the agent from the *main* training context (the one passed to the function)
+            #Using the learned Q-table, we select the best action, in a greedy manner
             action_index = agent.max_Q(state_key, num_actions) 
             
-            # The agent might return a random action (explore) if the state is new. 
-            # max_Q should ideally use an epsilon of 0 (or policy_last_iteration) for greedy path.
-            # Assuming agent.max_Q returns a deterministic best move index from known states.
-
             if action_index < 0 or action_index >= num_actions:
-                print(f"STEP {path_steps + 1}: Error: Policy returned invalid action index {action_index}. Stopping path.")
+                print(f"step {path_steps + 1}: ERROR POLICY {action_index}. Stopping path.")
                 break
             
-            # 4. Determine the next state based on the greedy action
             next_state_pieces = legal_next_states[action_index]
             
-            # 5. Get the movement information for printing
-            # Use the main instance's utility method
+            #We get the movement made
             move_info = self.getMovement(current_state_pieces, next_state_pieces)
             
+            #Just a safety check
             if move_info[0] is None or move_info[1] is None:
-                # This should ideally not happen if the move was generated correctly
-                print(f"STEP {path_steps + 1}: Error: Could not identify the moved piece. Stopping path.")
-                # Fallback: Just print the move from pieces list if possible
+                print(f"step {path_steps + 1}: ERROR IN THE MOVEMENT")
                 break
-
+            #Informations about the movement
             from_pos = move_info[0][0:2]
             to_pos = move_info[1][0:2]
             piece_id = move_info[0][2]
 
-            move_sequence.append(f"{piece_id}:{from_pos} -> {to_pos}") #Store the move
+            #store the movement in the sequence
+            move_sequence.append(f"{piece_id}:{from_pos} -> {to_pos}")
 
-            # 6. Apply the move to the temporary chess board for simulation and visual printing
-            # This updates the underlying temp_aichess.chess.board matrix
+            #We actually move the piece in the temp board
             temp_aichess.chess.movePiece(current_state_pieces, next_state_pieces)
 
-            print(f"STEP {path_steps + 1}: Move from {from_pos} to {to_pos}")
+            print(f"step {path_steps + 1}: Move from {from_pos} to {to_pos}")
             temp_aichess.chess.print_board()
             
-            # 7. Update for next iteration
             current_state_pieces = next_state_pieces
             state_key = self.state_to_key(current_state_pieces)
             path_steps += 1
 
+        #This condition should only appear in case there is a loop in the path, or the chekcmate is never reached
         if path_steps == max_path_length:
-            print(f"Path reconstruction stopped after {max_path_length} steps (max length reached).")
+            print(f"ERROR {max_path_length} steps (max length reached).")
 
-        print("\n=== Optimal Move Sequence ===")
+        print("\nmovement sequence")
         print(" -> ".join(move_sequence))
-        print("=============================\n")
         
-        print("--------------------------------------------------------------------------")
-
-    def debug_episode(self, episode, current_state, reward, action_index, legal_next_states, final_next_state, is_checkmate, is_draw, step):
-        """
-        Debug function to print detailed information about each episode and step
-        """
-        print(f"\n{'='*80}")
-        print(f"EPISODE {episode} - STEP {step}")
-        print(f"{'='*80}")
-        print(f"Total Reward so far: {reward}")
-        print(f"Action Index: {action_index} / Total Legal Moves: {len(legal_next_states)}")
-        print(f"Checkmate: {is_checkmate} | Draw: {is_draw}")
-        print(f"\nCurrent State Pieces:")
-        self.print_state_pieces(current_state)
-        print(f"\nNext State Pieces:")
-        self.print_state_pieces(final_next_state)
-        print(f"{'='*80}\n")
-
-    def print_state_pieces(self, state):
-        """
-        Print detailed information about all pieces in a state
-        """
-        if not state:
-            print("  [EMPTY STATE]")
-            return
-        
-        piece_names = {
-            2: "White Rook",
-            6: "White King",
-            8: "Black Rook",
-            12: "Black King"
-        }
-        
-        for piece in state:
-            row, col, piece_id = piece[0], piece[1], piece[2]
-            piece_name = piece_names.get(piece_id, f"Unknown({piece_id})")
-            print(f"  {piece_name}: Position ({row}, {col})")
-
-    def print_reward_analysis(self, reward, is_checkmate, is_draw):
-        """
-        Analyze and explain why the reward changed
-        """
-        print(f"\n--- REWARD ANALYSIS ---")
-        if is_checkmate:
-            print(f"✓ CHECKMATE! Reward: +100")
-        elif is_draw:
-            print(f"○ DRAW! Reward: -30 (penalty)")
-        elif reward == -1:
-            print(f"✗ Regular move. Reward: -1 (step penalty)")
-        else:
-            print(f"? Heuristic move. Reward: {reward}")
-        print(f"--- END ANALYSIS ---\n")
-
-
-        """
-    -----------------------------------------------------------------------------------------------------------
-    ###########################################################################################################
-    ###########################################################################################################
-    ------------------------------------ <Mètodes Estat> -----------------------------------------------------------------
-    ###########################################################################################################
-    ###########################################################################################################
-    -----------------------------------------------------------------------------------------------------------
-    """
     def copyState(self, state):
-        
+        #This function just pretends to copy a state
         copyState = []
         for piece in state:
             copyState.append(piece.copy())
@@ -218,26 +135,21 @@ class Aichess():
 
 
     def isSameState(self, a, b):
-
+        #This function checks if two states are the same, regardless of the order of pieces in the list
         isSameState1 = True
-        # a and b are lists
         for k in range(len(a)):
-
             if a[k] not in b:
                 isSameState1 = False
 
         isSameState2 = True
         # a and b are lists
         for k in range(len(b)):
-
             if b[k] not in a:
                 isSameState2 = False
 
         isSameState = isSameState1 and isSameState2
         return isSameState
-    
-    # TODO Ho necessitem?
-    # FET Val ara per ara ho mantindre igual, estic veient que es fa servir en altres llocs que no pretenim modificar
+
     def getPieceState(self, state, piece):
         pieceState = None
         for i in state:
@@ -251,18 +163,11 @@ class Aichess():
 
     def getBlackState(self, current_state):
         return self.chess.getBlackState(current_state)
-    
-
-    # TODO Fer crida a board pq dongui white i black
-    #       Si es prefereix fer crida a board que dongui tot
+  
     def getNextPositions(self, state):
-        # Delegate to board-level implementation
+        #Wrapper for board method, all the board related matters are administrated from there
         return self.chess.getNextPositions(state)
-    #TODO Aquí fer un get states de black i white pot estar bé
-    #   Piece sap quins moviments pot fer cada peça
-    #   Board sap on està cada peça
-    # Es podria gestionar aquí el next states 
-    #FET, mantindrem els dos metodes, tot i aixi la logica de control dels estats estara centralitzat a una altre funio get_all_next_states
+    
     def getListNextStatesW(self, myState, rivalState=None):
         return self.chess.getListNextStatesW(myState, rivalState)
 
@@ -272,93 +177,88 @@ class Aichess():
     def get_all_next_states(self, current_state, color):
         return self.chess.get_all_next_states(current_state, color)
 
-
-    """
-    -----------------------------------------------------------------------------------------------------------
-    ###########################################################################################################
-    ###########################################################################################################
-    ------------------------------------ <Llogica NO AJEDREZ> -----------------------------------------------------------------
-    ###########################################################################################################
-    ###########################################################################################################
-    -----------------------------------------------------------------------------------------------------------
-    """
-    # <TODO> Unificar aquests dos o borrar un
-    #FET, he decidit comentar/eliminar isVisitedSituation, centrant tot a isVisited
     def isVisited(self, mystate):
-
         if (len(self.listVisitedStates) > 0):
             perm_state = list(permutations(mystate))
-
             isVisited = False
             for j in range(len(perm_state)):
-
                 for k in range(len(self.listVisitedStates)):
-
                     if self.isSameState(list(perm_state[j]), self.listVisitedStates[k]):
                         isVisited = True
-
             return isVisited
         else:
             return False 
-    # <\TODO> Unificar aquests dos o borrar un
 
-
-    #NO SE SI REALEMTN CAL O ES FUMADA, E GEMINI M'HA DIT QUE HO FES PER EVITAR ERRORS EN LA NOVA LOGICA
     def state_to_key(self, state):
-        """
-        converteix la llista destats en tupla
-        """
-        #ordena per a garanitzar un rodre
+        #this function converts a state (list of pieces with positions) to a tuple of tuples
         sorted_state = sorted([tuple(p) for p in state], key=lambda x: (x[2], x[0], x[1]))
         return tuple(sorted_state)
 
 
-    # TODO Fer un enviroment .reset?
-    # FET, He fet una funcio learniin, que s'haurai d'encarregar de reiniciar l'entorn i fer el loop de cada episodi
     def qLearningChess(self, agent, num_episodes, max_steps_per_episode, reward_func='simple', stochasticity=0.0):
-        """
-        Cicle d'entrenament de Q-Learning per als escacs.
-        """
-        # Estat inicial del tauler
+        #This function is the core of the algorithm that trains the agent using Q-learning
+
         initial_state = self.chess.getCurrentState() 
         initial_state_key = self.state_to_key(initial_state)
+        #We define the 4 Q-Tables we are gonna print, the first and last one, and the ones at 25% and 75% of the training
+        Q_EPISODES = {0, int(num_episodes * 0.25), int(num_episodes * 0.75), num_episodes - 1}
 
         for episode in range(num_episodes):
+            #This part is just to capture the Qtables.
+            if episode in Q_EPISODES:
+                q_name = str(episode)
+                if episode == num_episodes - 1:
+                    q_name = "100"
+                elif episode == int(num_episodes * 0.25):
+                    q_name = "25"
+                elif episode == int(num_episodes * 0.75):
+                    q_name = "75"
+                    #so the names of this qtables are 0, 25, 75, 100
+                #Q-table is a dict, so we deep copy it to save the snapshot
+                self.qtables[q_name] = copy.deepcopy(agent.getQtable())            
+
             self.chess.reset_environment()
-            # Assegurem que tenim l'estat net després del reset
+            #we get the initial state at the beginning of each episode
             current_state = self.chess.getCurrentState()
             self.listVisitedStates = []
             done = False
             total_reward = 0
             
-
             state_key = self.state_to_key(current_state)
-
-            print(f"--- (inici) ---")
-            print(f"--- Episode {episode+1} (Reward: {total_reward}) ---")
+            #We print the episode number and reset the total reward, to keep a debug track
+            print(f" start ")
+            print(f" Episode {episode+1} (Reward: {total_reward}) ---")
 
             for step in range(max_steps_per_episode):
-                
                 legal_next_states = self.chess.get_all_next_states(current_state, True)
                 
                 if not legal_next_states:
-                    # Stalemate (ofegat)
+                    #stalemate is ot wanted, great penalty
                     reward = -500
                     done = True
                     break
                 
                 num_actions = len(legal_next_states)
-                
-                # Triem acció usant la clau actual
+                #We choose an action using the current state key
                 if episode != (num_episodes-1):
                     action_index = agent.policy(state_key, num_actions) 
                 else:
                     action_index = agent.policy_last_iteration(state_key, num_actions) 
 
+                #This implementation of the drunken sailor will only be activitated with the stochasticity parameter greater tha 0.0
+                if stochasticity > 0.0 and random.random() < stochasticity:
+                    #Get all legal action indices
+                    all_actions = list(range(num_actions))
+                    #Create a list of all legal actions EXCEPT the one chosen by the policy
+                    alternative_actions = [i for i in all_actions if i != action_index]
+                    
+                    if alternative_actions:
+                        #The agent 'stumbles' and chooses a random alternative action
+                        action_index = random.choice(alternative_actions)
+
                 final_next_state = legal_next_states[action_index]
                 
-                # --- CORRECCIÓ PRINCIPAL ---
-                # Comprovem si el Rei Negre (ID 12) encara és al tauler
+                #We need to keep track of the black king state, if it's disapeard there may be a proeblem
                 bk_state = self.getPieceState(final_next_state, 12)
                 
                 reward = 0
@@ -366,22 +266,22 @@ class Aichess():
                 is_draw = False
 
                 if bk_state is None:
-                    # El rei ha estat capturat -> Volem checkmate, no victori
-                    #VOELMQ UE APREGNUI A NO MATAR EL REI
+                    #We don't want the agent to kill the bk but to chekcmate it, so we penalize heavily
                     reward = -500
                     done = True
                 else:
-                    # El rei hi és, comprovem escac i mat o taules de forma segura
+                    #In the case the king hasn't died, we check for checkmate and draw conditions
                     is_checkmate = self.isBlackInCheckMate(final_next_state)
                     is_draw = self.is_Draw(final_next_state)
-                    
+                    #Depending on the reward function selected, we calculate the reward
                     if reward_func == 'heuristic':
                         reward = self.heuristica(final_next_state, step)
 
                     elif reward_func == 'simple':
-                        reward = -2
+                        reward = -1
 
                     if is_checkmate:
+                        #In case of checkmate, we give a high reward, and there is the end of the episode
                         reward += 100
                         done = True                   
 
@@ -392,34 +292,29 @@ class Aichess():
                 
                 total_reward += reward
                 
-                # Calculem la clau del següent estat UNA sola vegada
                 next_state_key = self.state_to_key(final_next_state)
                 
-                # Aprenentatge
+                #make the agent learn from the transition
                 agent.learn(state_key, action_index, reward, next_state_key, done, num_actions)
                 
-                # Movem peça visualment (això actualitza self.board)
-                # Important: fer-ho abans de canviar current_state
+                #We actually move the piece in the board
                 self.chess.movePiece(current_state, final_next_state)
                 
-                # Actualitzem variables per la següent iteració
                 current_state = final_next_state
                 state_key = next_state_key
 
                 if done:
                     break
 
-                        
-            #Search for the betst path to get to checkmate
-            if total_reward > self.best_reward or \
-               (total_reward == self.best_reward and step + 1 < self.min_steps_for_best_reward):
+            #search for the optimal path found so far
+            if total_reward > self.best_reward or (total_reward == self.best_reward and step + 1 < self.min_steps_for_best_reward):
                 
                 self.best_reward = total_reward
                 self.min_steps_for_best_reward = step + 1
                 self.optimal_path_key = initial_state_key
 
-            print(f"--- (FINAL) ---")
-            print(f"--- Episode {episode+1} (Reward: {total_reward}) ---")
+            print(f"final")
+            print(f"Episode {episode+1} (Reward: {total_reward})")
             self.chess.print_board()
             
             if episode % 200 == 0: 
@@ -429,14 +324,28 @@ class Aichess():
                 agent.reduce_exploration_rate_by_30_percent() 
         
         print("\n" + "="*80)
-        print("  Final PATH  ")
+        print("  final path found  ")
         print("="*80)
         self.print_optimal_path_from_qtable(agent)
-                
+
+        #Here we get the Qtables
+        
+        qprints = ["0", "25", "75", "100"] #we have stablished this names
+        for qname in qprints:
+            agent.q_table = self.qtables[qname]
+            print()
+            print("---------------------------------------------------------")
+            print(f"Qtable for loop {qname}")
+            print("---------------------------------------------------------")
+            print()
+            for state_key, q_values in agent.q_table.items():
+                print(f"  State: {state_key}")
+                print(f"    Q-Values: {q_values}")
+        
         return agent.q_table
 
     def getMovement(self, state, nextState):
-        # Given a state and a successor state, return the postiion of the piece that has been moved in both states
+        #Given a state and a successor state, return the postiion of the piece that has been moved in both states
         pieceState = None
         pieceNextState = None
         for piece in state:
@@ -449,16 +358,6 @@ class Aichess():
                     break
 
         return [pieceState, pieceNextState]
-    
-    def reconstructPath(self, state, depth):
-        # Once the solution is found, reconstruct the path taken to reach it
-        for i in range(depth):
-            self.pathToTarget.insert(0, state)
-            # For each node, retrieve its parent from dictPath
-            state = self.dictPath[str(state)][0]
-
-        # Insert the root node at the beginning
-        self.pathToTarget.insert(0, state)
         
     def mean(self, values):
         # Calculate the arithmetic mean (average) of a list of numeric values.
@@ -470,27 +369,7 @@ class Aichess():
 
         return total / n
 
-
-    def standard_deviation(self, values, mean_value):
-        # Calculate the standard deviation of a list of values.
-            total = 0
-            n = len(values)
-
-            for i in range(n):
-                total += pow(values[i] - mean_value, 2)
-
-            return pow(total / n, 1 / 2)
-
-    """
-    -----------------------------------------------------------------------------------------------------------
-    ###########################################################################################################
-    ###########################################################################################################
-    ------------------------------------ <Llogica Ajedrez> -----------------------------------------------------------------
-    ###########################################################################################################
-    ###########################################################################################################
-    -----------------------------------------------------------------------------------------------------------
-    """
-
+#TODO: revisar apartir d'aqui
     def movePieces(self, start, depthStart, to, depthTo):
         
         # To move from one state to the next we will need to find
@@ -885,8 +764,7 @@ if __name__ == "__main__":
     aichess = Aichess()
     print("printing board")
     aichess.chess.print_board()
-    #paco007 = paco(learning_rate=0.1, future_weight=0.9, exploration_rate=0.2)
     paco007 = paco(learning_rate=0.7, future_weight=0.9, exploration_rate=0.9)
-    aichess.qLearningChess(agent=paco007, num_episodes=2000, max_steps_per_episode=200, reward_func='simple', stochasticity=0.0)
+    aichess.qLearningChess(agent=paco007, num_episodes=1000, max_steps_per_episode=200, reward_func='heuristic', stochasticity=0.0)
 
     
