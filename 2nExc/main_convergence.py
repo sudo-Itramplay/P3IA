@@ -1,28 +1,38 @@
-import agent # El teu fitxer agent.py
-import aichess # El teu fitxer aichess.py
+import agent 
+import aichess 
 
 
-# --- Lògica d'Entrenament i Convergència ---
-
-def check_convergence(rewards, window=20):
+def check_convergence(rewards, window=20, min_episodes=50):
     """
-    Mètode de convergencia segons la mitjana de rewards cada 'window' episodis.
-    Detecta també si hi ha un 'plateau' (tres valors idèntics consecutius).
+    Calcula la convergència.
+    min_episodes: Nombre mínim d'episodis abans de comprovar si s'ha estancat.
     """
     if len(rewards) == 0:
         return 0.0, -1
     
-    # Càlcul de la mitjana dels últims 'window' episodis
+    # 1. Càlcul de la mitjana final (igual que tenies)
     curr_window = min(window, len(rewards))
     last_rewards = rewards[-curr_window:]
     avg_last = sum(last_rewards) / curr_window
     
     iterations = -1
-    # Detectar estancament (plateau)
-    for i in range(1, len(rewards)-1):
-        if rewards[i-1] == rewards[i] == rewards[i+1]:
-            iterations = i
+    
+    # 2. Detectar estancament (plateau), però ignorant el principi
+    # Comencem a 'min_episodes' o a 1, el que sigui més gran.
+    start_index = 1 if min_episodes < 50 else min_episodes
+    
+    for i in range(start_index, len(rewards)-1):
+        # Comprovem si hi ha 3 valors idèntics consecutius
+        variation = rewards[i-1] - rewards[i] - rewards[i+1]
+        if -20 <= variation <= 20:
+            # Només considerem estancament si el reward és raonable   
+            if rewards[i] > 0: 
+                iterations = i
             break
+            
+    # Si no troba convergència, retornem el total d'episodis com a "temps de convergència"
+    if iterations == -1:
+        iterations = len(rewards)
             
     return avg_last, iterations
 
@@ -112,10 +122,6 @@ def training_simulation(env_ai, agent_instance, num_episodes=200, max_steps=200,
             agent_instance.reduce_exploration_rate_by_30_percent()
 
         rewards_history.append(total_reward)
-        
-        # Opcional: imprimir progrés cada X episodis
-        # if episode % 50 == 0:
-        #     print(f"Episode {episode}: Reward {total_reward}")
 
     return rewards_history
 
@@ -156,8 +162,7 @@ def main():
                     exploration_rate=epsilon
                 )
                 
-                # Entrenem (per exemple 200 episodis per test ràpid, o més per resultat robust)
-                NUM_EPISODES = 200
+                NUM_EPISODES = 3000
                 rewards = training_simulation(game, agent_instance, num_episodes=NUM_EPISODES, reward_func='heuristic')
                 
                 # Comprovem convergència
@@ -195,12 +200,12 @@ def main():
     # Demostració de guardar/carregar
     if best_agent_instance:
         print("\nGuardant la Q-table del millor agent...")
-        agent_instance.save_qtable_to_json(best_agent_instance, "best_agent_qtable.json")
+        agent_instance.save_qtable_to_json("best_agent_qtable.json")
         
         # Test de càrrega
         print("Verificant càrrega...")
         dummy_agent = agent.Agent()
-        agent_instance.load_qtable_from_json(dummy_agent, "best_agent_qtable.json")
+        dummy_agent.load_qtable_from_json("best_agent_qtable.json")
         print(f"Mida de la Q-table carregada: {len(dummy_agent.q_table)} estats.")
 
 if __name__ == "__main__":
