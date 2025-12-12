@@ -2,7 +2,7 @@ import agent
 import aichess 
 
 
-def check_convergence(rewards, window=10, min_episodes=50):
+def check_convergence(rewards, min_episodes=50):
     """
     Calcula la convergència.
     min_episodes: Nombre mínim d'episodis abans de comprovar si s'ha estancat.
@@ -10,14 +10,8 @@ def check_convergence(rewards, window=10, min_episodes=50):
     if len(rewards) == 0:
         return 0.0, -1
     
-    # 1. Càlcul de la mitjana final (igual que tenies)
-    curr_window = min(window, len(rewards))
-    last_rewards = rewards[-curr_window:]
-    avg_last = sum(last_rewards) / curr_window
-    
     iterations = -1
-    
-    # 2. Detectar estancament (plateau), però ignorant el principi
+    avg_last=[]
     # Comencem a 'min_episodes' o a 1, el que sigui més gran.
     start_index = 1 if min_episodes < 50 else min_episodes
     
@@ -32,14 +26,16 @@ def check_convergence(rewards, window=10, min_episodes=50):
         if -20 <= variation1 <= 20 and -20 <= variation2 <= 20:
             # Només considerem estancament si el reward és raonable   
             if rewards[i] > 0: 
+                avg_best = sum(rewards[i-2:i+2]) / i
                 iterations = i
             break
+        avg_last.append(sum(rewards[i-2:i+2]) / i)
             
     # Si no troba convergència, retornem el total d'episodis com a "temps de convergència"
     if iterations == -1:
         iterations = len(rewards)
             
-    return avg_last, iterations
+    return avg_best, iterations, avg_last
 
 
 def Convergence_sim(self, agent, num_episodes, max_steps_per_episode=200, reward_func='simple', stochasticity=0.0):
@@ -48,15 +44,12 @@ def Convergence_sim(self, agent, num_episodes, max_steps_per_episode=200, reward
         initial_state = self.chess.getCurrentState() 
         initial_state_key = self.state_to_key(initial_state)
         rewards_history = []
-        #We define the 4 Q-Tables we are gonna print, the first and last one, and the ones at 25% and 75% of the training
-        Q_EPISODES = {0, int(num_episodes * 0.25), int(num_episodes * 0.75), num_episodes - 1}
 
         for episode in range(num_episodes):
             #This part is just to capture the Qtables.
          
 
             self.chess.reset_environment()
-            #we get the initial state at the beginning of each episode
             current_state = self.chess.getCurrentState()
             self.listVisitedStates = []
             done = False
@@ -68,13 +61,11 @@ def Convergence_sim(self, agent, num_episodes, max_steps_per_episode=200, reward
                 legal_next_states = self.chess.get_all_next_states(current_state, True)
                 
                 if not legal_next_states:
-                    #stalemate is ot wanted, great penalty
                     reward = -500
                     done = True
                     break
                 
                 num_actions = len(legal_next_states)
-                #We choose an action using the current state key
                 if episode != (num_episodes-1):
                     action_index = agent.policy(state_key, num_actions) 
                 else:
@@ -82,7 +73,6 @@ def Convergence_sim(self, agent, num_episodes, max_steps_per_episode=200, reward
 
                 final_next_state = legal_next_states[action_index]
                 
-                #We need to keep track of the black king state, if it's disapeard there may be a proeblem
                 bk_state = self.getPieceState(final_next_state, 12)
                 
                 reward = 0
@@ -159,6 +149,7 @@ def main():
     best_alpha = best_gamma = best_epsilon = None
     best_reward_for_best_conv = 0.0
     best_itr = 3000 # Assumim el màxim inicialment
+    best_conv_list = []
     
     # Guardarem el millor agent per demostrar el guardat JSON al final
     best_agent_instance = None 
@@ -188,14 +179,16 @@ def main():
                 #rewards = training_simulation(game, agent_instance, num_episodes=NUM_EPISODES, reward_func='heuristic')
                 rewards = Convergence_sim(game, agent_instance, num_episodes=NUM_EPISODES, reward_func='heuristic')
                 # Comprovem convergència
-                conv, iterations = check_convergence(rewards)
+                conv, iterations, conv_list = check_convergence(rewards)
                 
                 # Si iterations és -1, significa que no ha trobat plateau, posem el màxim
                 iterations_val = iterations if iterations != -1 else NUM_EPISODES
                 
-                convergences.append((alpha, gamma, epsilon, conv, iterations_val))
-                
                 current_best_reward = max(rewards) if len(rewards) > 0 else 0.0
+
+                convergences.append((alpha, gamma, epsilon, conv, current_best_reward, iterations_val))
+                
+                
 
                 # Criteri: Major convergència (reward mig final) i menor nombre d'iteracions per estabilitzar-se
                 if conv >= best_conv:
@@ -206,12 +199,13 @@ def main():
                         best_reward_for_best_conv = current_best_reward
                         best_itr = iterations_val
                         best_agent_instance = agent_instance
+                        best_conv_list = conv_list
 
     print("\n" + "="*50)
     print("Simulació completada.")
     print("Totes les convergències:")
-    for alpha, gamma, epsilon, conv, itr in convergences:
-        print(f"alpha={alpha}, gamma={gamma}, epsilon={epsilon} -> conv={conv:.3f}, itr={itr}")
+    for alpha, gamma, epsilon, conv, rew, itr in convergences:
+        print(f"alpha={alpha}, gamma={gamma}, epsilon={epsilon} ->max_reward={rew}, conv={conv:.3f}, itr={itr}")
 
     print("\nMillor convergència trobada:")
     print(
