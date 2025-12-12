@@ -1,6 +1,39 @@
 import agent 
 import aichess 
-
+import matplotlib.pyplot as plt
+import numpy as np
+def plot_convergence(rewards_history, iterations,conv_point, filename='convergence_plot.png'):
+    """
+    Genera un gràfic de la convergència (recompensa per episodi) i el guarda en un fitxer.
+    
+    Args:
+        rewards_history (list): Llista amb la recompensa total de cada episodi.
+        window_size (int): Mida de la finestra per calcular la mitjana mòbil.
+        filename (str): Nom del fitxer on es guardarà la imatge.
+    """
+    plt.figure(figsize=(10, 6))
+    
+    # Gràfic de les recompenses brutes (en blau clar i transparent per veure la variància)
+    plt.plot(rewards_history, color='red', alpha=0.6, label='Convergencia per episodi')
+    
+    """    # Càlcul i gràfic de la mitjana mòbil per veure la tendència (en blau fosc)
+    if len(rewards_history) >= iterations:
+        moving_average = np.convolve(rewards_history, np.ones(iterations)/iterations, mode='valid')
+        # Ajustem l'eix X perquè la mitjana coincideixi amb el final de la finestra
+        plt.plot(range(iterations-1, len(rewards_history)), moving_average, color='blue', linewidth=2, label=f'Mitjana mòbil ({iterations})')
+    """
+    
+    plt.axvline(x=conv_point, color='blue', linestyle='--', linewidth=2, label=f'Marca punt on es troba la convergencia (x={conv_point})')
+    plt.title("Convergència de l'Agent: Convergencia vs Episodis")
+    plt.xlabel("Episodis")
+    plt.ylabel("Convergencia")
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    
+    # Guardar el gràfic
+    plt.savefig(filename)
+    print(f"Gràfic guardat a {filename}")
+    plt.show() # Descomenta això si l'executes en local i vols veure la finestra
 
 def check_convergence(rewards, min_episodes=50):
     """
@@ -11,31 +44,36 @@ def check_convergence(rewards, min_episodes=50):
         return 0.0, -1
     
     iterations = -1
-    avg_last=[]
+    conv_list=[]
     # Comencem a 'min_episodes' o a 1, el que sigui més gran.
     start_index = 1 if min_episodes < 50 else min_episodes
+    avg_best = 0.0
     
-    for i in range(start_index, len(rewards)-1):
-        if rewards[i-1]<0 or rewards[i]<0 or rewards[i+1]<0:
-            continue  # Ignorem estancaments en recompenses negatives
-        
-        # Comprovem si hi ha 3 valors idèntics consecutius
-        variation1 = rewards[i-1] - rewards[i]
-        variation2 = rewards[i] - rewards[i+1]
+    for i in range(len(rewards)-1):
+        if i > start_index and avg_best == 0.0:
+            if (rewards[i-1]<0 or rewards[i]<0 or rewards[i+1]<0):
+                continue  # Ignorem estancaments en recompenses negatives
+            
 
-        if -20 <= variation1 <= 20 and -20 <= variation2 <= 20:
-            # Només considerem estancament si el reward és raonable   
-            if rewards[i] > 0: 
-                avg_best = sum(rewards[i-2:i+2]) / i
-                iterations = i
-            break
-        avg_last.append(sum(rewards[i-2:i+2]) / i)
+            # Comprovem si hi ha 3 valors idèntics consecutius
+            variation1 = rewards[i-1] - rewards[i]
+            variation2 = rewards[i] - rewards[i+1]
+
+            if -20 <= variation1 <= 20 and -20 <= variation2 <= 20:
+                # Només considerem estancament si el reward és raonable   
+                if rewards[i] > 0: 
+                    avg_best = sum(rewards[i-2:i+2]) / i
+                    conv_point = i
+                
+        
+        if i >= 2:
+            conv_list.append(abs(sum(rewards[i-2:i+2]) / i))
             
     # Si no troba convergència, retornem el total d'episodis com a "temps de convergència"
     if iterations == -1:
         iterations = len(rewards)
             
-    return avg_best, iterations, avg_last
+    return avg_best, conv_point, conv_list
 
 
 def Convergence_sim(self, agent, num_episodes, max_steps_per_episode=200, reward_func='simple', stochasticity=0.0):
@@ -139,9 +177,14 @@ def Convergence_sim(self, agent, num_episodes, max_steps_per_episode=200, reward
 
 # --- Main Configuration ---
 
-alphas = [0.1, 0.3, 0.5, 0.7]
-gammas = [0.5, 0.7, 0.9]
-epsilons = [0.1, 0.3, 0.5, 0.9]
+#alphas = [0.1, 0.3, 0.5, 0.7]
+#gammas = [0.5, 0.7, 0.9]
+#epsilons = [0.1, 0.3, 0.5, 0.9]
+
+
+alphas = [0.3, 0.5, 0.7]
+gammas = [0.5, 0.7]
+epsilons = [0.3, 0.5]
 
 def main():
     convergences = []
@@ -175,29 +218,29 @@ def main():
                     exploration_rate=epsilon
                 )
                 
-                NUM_EPISODES = 3000
+                NUM_EPISODES = 2000
                 #rewards = training_simulation(game, agent_instance, num_episodes=NUM_EPISODES, reward_func='heuristic')
                 rewards = Convergence_sim(game, agent_instance, num_episodes=NUM_EPISODES, reward_func='heuristic')
                 # Comprovem convergència
-                conv, iterations, conv_list = check_convergence(rewards)
+                conv, conv_point, conv_list = check_convergence(rewards)
                 
                 # Si iterations és -1, significa que no ha trobat plateau, posem el màxim
-                iterations_val = iterations if iterations != -1 else NUM_EPISODES
+                conv_iteration = conv_point if conv_point != -1 else NUM_EPISODES
                 
                 current_best_reward = max(rewards) if len(rewards) > 0 else 0.0
 
-                convergences.append((alpha, gamma, epsilon, conv, current_best_reward, iterations_val))
+                convergences.append((alpha, gamma, epsilon, conv, current_best_reward, conv_iteration))
                 
                 
 
                 # Criteri: Major convergència (reward mig final) i menor nombre d'iteracions per estabilitzar-se
                 if conv >= best_conv:
                     # Si la convergència és millor, o és igual però amb menys iteracions (més ràpid)
-                    if conv > best_conv or (conv == best_conv and iterations_val < best_itr):
+                    if conv > best_conv or (conv == best_conv and conv_iteration < best_itr):
                         best_conv = conv
                         best_alpha, best_gamma, best_epsilon = alpha, gamma, epsilon
                         best_reward_for_best_conv = current_best_reward
-                        best_itr = iterations_val
+                        best_itr = conv_iteration
                         best_agent_instance = agent_instance
                         best_conv_list = conv_list
 
@@ -212,6 +255,12 @@ def main():
         f"alpha={best_alpha}, gamma={best_gamma}, epsilon={best_epsilon} "
         f"-> convergència={best_conv:.3f}, max_reward={best_reward_for_best_conv}, iteracions={best_itr}"
     )
+
+    # Generem gràfic de la millor convergència
+    print("\nGenerant gràfic de la millor convergència...")
+    print(best_itr)
+    print(len(best_conv_list))
+    plot_convergence(best_conv_list, iterations=len(best_conv_list), conv_point=best_itr,filename='best_convergence_plot.png')
     
     # Demostració de guardar/carregar
     if best_agent_instance:
