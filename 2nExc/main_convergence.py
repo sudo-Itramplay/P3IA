@@ -2,7 +2,7 @@ import agent
 import aichess 
 
 
-def check_convergence(rewards, window=20, min_episodes=50):
+def check_convergence(rewards, window=10, min_episodes=50):
     """
     Calcula la convergència.
     min_episodes: Nombre mínim d'episodis abans de comprovar si s'ha estancat.
@@ -22,8 +22,11 @@ def check_convergence(rewards, window=20, min_episodes=50):
     start_index = 1 if min_episodes < 50 else min_episodes
     
     for i in range(start_index, len(rewards)-1):
+        if rewards[i-1]<0 or rewards[i]<0 or rewards[i+1]<0:
+            continue  # Ignorem estancaments en recompenses negatives
+        
         # Comprovem si hi ha 3 valors idèntics consecutius
-        variation1 = rewards[i-1] - rewards[i] - rewards[i+1]
+        variation1 = rewards[i-1] - rewards[i]
         variation2 = rewards[i] - rewards[i+1]
 
         if -20 <= variation1 <= 20 and -20 <= variation2 <= 20:
@@ -38,95 +41,111 @@ def check_convergence(rewards, window=20, min_episodes=50):
             
     return avg_last, iterations
 
-def training_simulation(env_ai, agent_instance, num_episodes=200, max_steps=200, reward_func='heuristic'):
-    """
-    Executa un bucle d'entrenament similar a aichess.qLearningChess però retorna
-    l'històric de recompenses per poder calcular la convergència.
-    """
-    rewards_history = []
-    
-    for episode in range(num_episodes):
-        env_ai.chess.reset_environment()
-        current_state = env_ai.chess.getCurrentState()
-        state_key = env_ai.state_to_key(current_state)
-        
-        total_reward = 0
-        done = False
-        
-        for step in range(max_steps):
-            # Obtenir estats següents legals
-            legal_next_states = env_ai.chess.get_all_next_states(current_state, True)
+
+def Convergence_sim(self, agent, num_episodes, max_steps_per_episode=200, reward_func='simple', stochasticity=0.0):
+        #This function is the core of the algorithm that trains the agent using Q-learning
+
+        initial_state = self.chess.getCurrentState() 
+        initial_state_key = self.state_to_key(initial_state)
+        rewards_history = []
+        #We define the 4 Q-Tables we are gonna print, the first and last one, and the ones at 25% and 75% of the training
+        Q_EPISODES = {0, int(num_episodes * 0.25), int(num_episodes * 0.75), num_episodes - 1}
+
+        for episode in range(num_episodes):
+            #This part is just to capture the Qtables.
+         
+
+            self.chess.reset_environment()
+            #we get the initial state at the beginning of each episode
+            current_state = self.chess.getCurrentState()
+            self.listVisitedStates = []
+            done = False
+            total_reward = 0
             
-            if not legal_next_states:
-                # Stalemate o sense moviments, penalització gran
-                reward = -500
-                done = True
-                # Aprenem el final (sense next_state vàlid realment útil aquí, però mantenim estructura)
-                agent_instance.learn(state_key, -1, reward, state_key, done, 0)
+            state_key = self.state_to_key(current_state)
+
+            for step in range(max_steps_per_episode):
+                legal_next_states = self.chess.get_all_next_states(current_state, True)
+                
+                if not legal_next_states:
+                    #stalemate is ot wanted, great penalty
+                    reward = -500
+                    done = True
+                    break
+                
+                num_actions = len(legal_next_states)
+                #We choose an action using the current state key
+                if episode != (num_episodes-1):
+                    action_index = agent.policy(state_key, num_actions) 
+                else:
+                    action_index = agent.policy_last_iteration(state_key, num_actions) 
+
+                final_next_state = legal_next_states[action_index]
+                
+                #We need to keep track of the black king state, if it's disapeard there may be a proeblem
+                bk_state = self.getPieceState(final_next_state, 12)
+                
+                reward = 0
+                is_checkmate = False
+                is_draw = False
+
+                if bk_state is None:
+                    #We don't want the agent to kill the bk but to chekcmate it, so we penalize heavily
+                    reward = -500
+                    done = True
+                else:
+                    #In the case the king hasn't died, we check for checkmate and draw conditions
+                    is_checkmate = self.isBlackInCheckMate(final_next_state)
+                    is_draw = self.is_Draw(final_next_state)
+                    #Depending on the reward function selected, we calculate the reward
+                    if reward_func == 'heuristic':
+                        reward = self.heuristica(final_next_state, step)
+
+                    elif reward_func == 'simple':
+                        reward = -1
+
+                    if is_checkmate:
+                        #In case of checkmate, we give a high reward, and there is the end of the episode
+                        reward += 100
+                        done = True                   
+
+                    if is_draw:
+                        reward = -50
+                        done = True 
+                   
+                
                 total_reward += reward
-                break
-
-            num_actions = len(legal_next_states)
-            
-            # Decisió de l'acció
-            if episode != (num_episodes - 1):
-                action_index = agent_instance.policy(state_key, num_actions)
-            else:
-                action_index = agent_instance.policy_last_iteration(state_key, num_actions)
-            
-            final_next_state = legal_next_states[action_index]
-            next_state_key = env_ai.state_to_key(final_next_state)
-            
-            # Comprovacions de lògica de joc (Rei Negre, escac i mat, taules)
-            bk_state = env_ai.getPieceState(final_next_state, 12)
-            
-            reward = 0
-            is_checkmate = False
-            is_draw = False
-
-            if bk_state is None:
-                reward = -500
-                done = True
-            else:
-                is_checkmate = env_ai.isBlackInCheckMate(final_next_state)
-                is_draw = env_ai.is_Draw(final_next_state)
                 
-                if reward_func == 'heuristic':
-                    reward = env_ai.heuristica(final_next_state, step)
-                elif reward_func == 'simple':
-                    reward = -1
-
-                if is_checkmate:
-                    reward += 100
-                    done = True
+                next_state_key = self.state_to_key(final_next_state)
                 
-                if is_draw:
-                    reward = -50
-                    done = True
+                #make the agent learn from the transition
+                agent.learn(state_key, action_index, reward, next_state_key, done, num_actions)
+                
+                #We actually move the piece in the board
+                self.chess.movePiece(current_state, final_next_state)
+                
+                current_state = final_next_state
+                state_key = next_state_key
 
-            total_reward += reward
+                if done:
+                    break
             
-            # L'agent aprèn
-            agent_instance.learn(state_key, action_index, reward, next_state_key, done, num_actions)
-            
-            # Movem peces (encara que per simulació pura només necessitem l'estat, el board ho requereix per consistència interna)
-            env_ai.chess.movePiece(current_state, final_next_state)
-            current_state = final_next_state
-            state_key = next_state_key
-            
-            if done:
-                break
+            rewards_history.append(total_reward)
+            #search for the optimal path found so far
+            if total_reward > self.best_reward or (total_reward == self.best_reward and step + 1 < self.min_steps_for_best_reward):
+                
+                self.best_reward = total_reward
+                self.min_steps_for_best_reward = step + 1
+                self.optimal_path_key = initial_state_key
+
+            if episode % 200 == 0: 
+                agent.reduce_exploration_rate_by_decrease_rate() 
+
+            if episode % 1000 == 0: 
+                agent.reduce_exploration_rate_by_30_percent() 
         
-        # Reducció de paràmetres d'exploració (segons lògica original d'aichess)
-        if episode % 200 == 0:
-            agent_instance.reduce_exploration_rate_by_decrease_rate()
-        if episode % 1000 == 0:
-            agent_instance.reduce_exploration_rate_by_30_percent()
+        return rewards_history
 
-        rewards_history.append(total_reward)
-        if episode > num_episodes-5 :
-            print(f"Episodi {episode+1}/{num_episodes}, Recompensa total: {total_reward}")
-    return rewards_history
 
 # --- Main Configuration ---
 
@@ -139,7 +158,7 @@ def main():
     best_conv = float("-inf")
     best_alpha = best_gamma = best_epsilon = None
     best_reward_for_best_conv = 0.0
-    best_itr = 200 # Assumim el màxim inicialment
+    best_itr = 3000 # Assumim el màxim inicialment
     
     # Guardarem el millor agent per demostrar el guardat JSON al final
     best_agent_instance = None 
@@ -166,8 +185,8 @@ def main():
                 )
                 
                 NUM_EPISODES = 3000
-                rewards = training_simulation(game, agent_instance, num_episodes=NUM_EPISODES, reward_func='heuristic')
-                
+                #rewards = training_simulation(game, agent_instance, num_episodes=NUM_EPISODES, reward_func='heuristic')
+                rewards = Convergence_sim(game, agent_instance, num_episodes=NUM_EPISODES, reward_func='heuristic')
                 # Comprovem convergència
                 conv, iterations = check_convergence(rewards)
                 
