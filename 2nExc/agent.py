@@ -1,5 +1,7 @@
 import random
 import numpy as np
+import json
+import ast
 
 class Agent:
     '''
@@ -161,3 +163,43 @@ class Agent:
         best_move_index = np.argmax(np.array(q_values[:n_actions_in_state]))
         
         return int(best_move_index)
+    
+    """
+    -----------------------------------------------------------------------------------------------------------
+    ###########################################################################################################
+    ###########################################################################################################
+    ------------------------------------ <Mètodes practica qtable> --------------------------------------------
+    ###########################################################################################################
+    ###########################################################################################################
+    -----------------------------------------------------------------------------------------------------------
+    """   
+
+    def save_qtable_to_json(self, filename="qtable.json"):
+        """
+        Guarda la Q-table de l'agent en un fitxer JSON.
+        Converteix les claus (tuples d'estat) a string per ser compatibles amb JSON.
+        """
+        # Convertim les claus (tuples) a string
+        serializable_qtable = {str(k): v for k, v in self.q_table.items()}
+        
+        try:
+            with open(filename, 'w') as f:
+                json.dump(serializable_qtable, f, indent=4)
+            print(f"Q-table guardada correctament a {filename}")
+        except IOError as e:
+            print(f"Error guardant la Q-table: {e}")
+
+    def load_qtable_from_json(self, filename="qtable.json"):
+        """
+        Carrega una Q-table des d'un fitxer JSON a l'agent.
+        Converteix les claus de string de nou a tuples utilitzant ast.literal_eval.
+        """
+        try:
+            with open(filename, 'r') as f:
+                loaded_data = json.load(f)
+            
+            # Reconstruïm el diccionari convertint les claus de string a tuples
+            self.q_table = {ast.literal_eval(k): v for k, v in loaded_data.items()}
+            print(f"Q-table carregada correctament des de {filename}")
+        except (IOError, json.JSONDecodeError) as e:
+            print(f"Error carregant la Q-table: {e}")

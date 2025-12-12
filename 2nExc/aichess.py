@@ -6,7 +6,6 @@ Created on Thu Sep  8 11:22:03 2022
 @author: ignasi
 """
 import copy
-import math
 import board
 import random
 import numpy as np
@@ -327,20 +326,6 @@ class Aichess():
         print("  final path found  ")
         print("="*80)
         self.print_optimal_path_from_qtable(agent)
-
-        #Here we get the Qtables
-        
-        qprints = ["0", "25", "75", "100"] #we have stablished this names
-        for qname in qprints:
-            agent.q_table = self.qtables[qname]
-            print()
-            print("---------------------------------------------------------")
-            print(f"Qtable for loop {qname}")
-            print("---------------------------------------------------------")
-            print()
-            for state_key, q_values in agent.q_table.items():
-                print(f"  State: {state_key}")
-                print(f"    Q-Values: {q_values}")
         
         return agent.q_table
 
@@ -609,137 +594,6 @@ class Aichess():
         
         return False    
 
-
-
-    """
-    -----------------------------------------------------------------------------------------------------------
-    ###########################################################################################################
-    ###########################################################################################################
-    ------------------------------------ <CODIS EXEMPLE> -----------------------------------------------------------------
-    ###########################################################################################################
-    ###########################################################################################################
-    -----------------------------------------------------------------------------------------------------------
-    """
-    def expectimax(self, depthWhite, depthBlack):
-        
-        currentState = self.chess.getCurrentState()
-        color = True
-        currentState = self.chess.getCurrentState()
-        self.newBoardSim(currentState)
-
-        #main game loop
-        while (not self.is_Draw(currentState)) and (not self.isBlackInCheckMate(currentState) and not self.isWhiteInCheckMate(currentState)):
-                    
-            #choose depth depending on the turn
-            profunditat = depthWhite if color else depthBlack
-
-            self.initialdepth = profunditat
-
-            #recursive call
-            valor, millors_peces_mogudes = self.recursiveexpectimax(currentState, profunditat, color)
-
-            #check if there are no more moves
-            if millors_peces_mogudes is None:
-                print(f"No s'ha trobat cap moviment vàlid per a {'Blanques' if color else 'Negres'}. (Possible ofegat?)")
-                break
-                
-            #take the actual movement
-            moviment = self.getMovement(self.chess.getCurrentState(), millors_peces_mogudes)
-            
-            if moviment[0] is None or moviment[1] is None:
-                print("Error a 'getMovement', no s'ha trobat el moviment. Avortant.")
-                print("Estat actual:", currentState)
-                print("Peçes mogudes:", millors_peces_mogudes)
-                break 
-            
-            #make the movement
-            from_pos = moviment[0][0:2]
-            to_pos = moviment[1][0:2]
-            self.chess.moveSim(from_pos, to_pos)
-                        
-            
-            print(f"Torn de {'Blanques' if color else 'Negres'} (Expectimax)")
-            print(f"Movem {from_pos} a {to_pos} (Valor esperat: {valor})")
-            self.chess.print_board()
-            
-            #update the state and change turn
-            currentState = self.chess.getCurrentState()
-            color = not color
-        #final print
-        if self.isBlackInCheckMate(currentState):
-            print("Escac i mat! Guanyen les blanques.")
-        elif self.isWhiteInCheckMate(currentState):
-            print("Escac i mat! Guanyen les negres.")
-        else:
-            print("Partida acabada (sense escac i mat).")
-            if self.is_Draw(currentState):
-                print("La partida ha acabat en empat (taules).")
-        return
-    
-
-
-    def minimaxVSalphabeta(self, depthWhite, depthBlack):
-        
-        currentState = self.chess.getCurrentState()    
-        color = True
-        currentState = self.chess.getCurrentState()
-        self.newBoardSim(currentState)
-
-        #main game loop
-        while (not self.is_Draw(currentState)) and (not self.isBlackInCheckMate(currentState) and not self.isWhiteInCheckMate(currentState)):
-
-            #depth depending on the turn
-            profunditat = depthWhite if color else depthBlack
-
-            if color:
-                #white move minimax
-                valor, millors_peces_mogudes = self.recursiveminimaxGame(currentState, profunditat, color)
-            else:
-                #black move alphabeta
-                valor, millors_peces_mogudes = self.recursiveAlphaBetaPoda(currentState, profunditat, color, -float('inf'), float('inf'))
-            #no move check
-            if millors_peces_mogudes is None:
-                print(f"No s'ha trobat cap moviment vàlid per a {'Blanques' if color else 'Negres'}. (Possible ofegat?)")
-                break
-                
-            #take the actual movement
-            moviment = self.getMovement(self.chess.getCurrentState(), millors_peces_mogudes)
-            
-            if moviment[0] is None or moviment[1] is None:
-                print("Error a 'getMovement', no s'ha trobat el moviment. Avortant.")
-                print("Estat actual:", currentState)
-                print("Peçes mogudes:", millors_peces_mogudes)
-                break 
-            
-            #execute the movement
-            from_pos = moviment[0][0:2]
-            to_pos = moviment[1][0:2]
-            self.chess.moveSim(from_pos, to_pos)           
-
-            if not color:
-                print(f"Torn de {'Blanques' if color else 'Negres'} (Expecti)")
-                print(f"Movem {from_pos} a {to_pos} (Valor esperat: {valor})")
-                self.chess.print_board()
-            else:
-                print(f"Torn de {'Blanques' if color else 'Negres'} (alpha)")
-                print(f"Movem {from_pos} a {to_pos} (Valor esperat: {valor})")
-                self.chess.print_board()
-            
-            #update state and turn
-            currentState = self.chess.getCurrentState()
-            color = not color
-
-        if self.isBlackInCheckMate(currentState):
-            print("Escac i mat! Guanyen les blanques.")
-        elif self.isWhiteInCheckMate(currentState):
-            print("Escac i mat! Guanyen les negres.")
-        else:
-            print("Partida acabada (sense escac i mat).")
-            if self.is_Draw(currentState):
-                print("La partida ha acabat en empat (taules).")
-        return
-    
-
 """
 -----------------------------------------------------------------------------------------------------------
 ###########################################################################################################
@@ -766,5 +620,8 @@ if __name__ == "__main__":
     aichess.chess.print_board()
     paco007 = paco(learning_rate=0.7, future_weight=0.9, exploration_rate=0.9)
     aichess.qLearningChess(agent=paco007, num_episodes=1000, max_steps_per_episode=200, reward_func='heuristic', stochasticity=0.0)
+
+    paco007.save_qtable_to_json("trained_agent_qtable.json")
+    print("Q-table saved to 'trained_agent_qtable.json'")   
 
     
