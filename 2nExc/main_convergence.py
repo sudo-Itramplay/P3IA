@@ -23,8 +23,10 @@ def check_convergence(rewards, window=20, min_episodes=50):
     
     for i in range(start_index, len(rewards)-1):
         # Comprovem si hi ha 3 valors idèntics consecutius
-        variation = rewards[i-1] - rewards[i] - rewards[i+1]
-        if -20 <= variation <= 20:
+        variation1 = rewards[i-1] - rewards[i] - rewards[i+1]
+        variation2 = rewards[i] - rewards[i+1]
+
+        if -20 <= variation1 <= 20 and -20 <= variation2 <= 20:
             # Només considerem estancament si el reward és raonable   
             if rewards[i] > 0: 
                 iterations = i
@@ -122,7 +124,8 @@ def training_simulation(env_ai, agent_instance, num_episodes=200, max_steps=200,
             agent_instance.reduce_exploration_rate_by_30_percent()
 
         rewards_history.append(total_reward)
-
+        if episode > num_episodes-5 :
+            print(f"Episodi {episode+1}/{num_episodes}, Recompensa total: {total_reward}")
     return rewards_history
 
 # --- Main Configuration ---
