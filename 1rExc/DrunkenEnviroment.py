@@ -110,7 +110,8 @@ class DrunkenEnvironment:
         intended_action = action
         possible_actions = [0, 1, 2, 3]
         
-        if random.random() < 0.01: #1% chance of being drunk
+        if random.random() < 0.01:
+            #1% chance of being drunk
             #look for the ohter possible actions, excluding the intended one
             other_actions = [a for a in possible_actions if a != intended_action]
             #Sailor takes a random action from the unintended directions
@@ -118,9 +119,9 @@ class DrunkenEnvironment:
                 actual_action = random.choice(other_actions)
             else:
                 actual_action = intended_action
-        else: #99% chance of success
+        else: 
             actual_action = intended_action
-        #End of the drunken sailor logic
+
 
         deltas = {
             0: (-1, 0),  #Up
@@ -139,8 +140,7 @@ class DrunkenEnvironment:
         new_c = current_c + adc
         new_pos = (new_r, new_c)
 
-        #DEBUGGING Report if drunken deviation occurred
-        #In case the executed action has been different from the intended one
+        #Report if drunken deviation occurred
         if actual_action != intended_action:
             action_names = {0: 'Up', 1: 'Down', 2: 'Right', 3: 'Left'}
             try:
@@ -160,22 +160,21 @@ class DrunkenEnvironment:
 
         #has the agent reached the goal?
         if new_pos == self.currentStateB:
-            #as it could be 100 or -dist
             reward = self.treasure
             done = True
+
         #has the agent hit the obstacle?
         if new_pos == self.currentObs:
             return self.currentStateW, self.wall_penalization, done
         
-        # IMPORTANT: If the new position is NOT the goal/obstacle/wall, 
+        # If the new position is NOT the goal/obstacle/wall, 
         # the reward is the value stored in the board (e.g., -1 or -3, if init2 was used)
         if not done:
             # We fetch the specific penalty for the new position
             reward = self.board[new_pos] 
-            # Note: This logic assumes that the reward for stepping on a clean tile is defined by the board value. 
+            # This logic assumes that the reward for stepping on a clean tile is defined by the board value. 
             # This correctly handles both the simple -1/100 (init) and the Manhattan distance (init2).
 
-        # Recuperem l'objecte Rei
         king_obj = self.board[self.currentStateW]
         self.board[self.currentStateW] = reward
         self.board[self.currentStateW] = -1 
@@ -185,7 +184,6 @@ class DrunkenEnvironment:
         return self.currentStateW, reward, done
     
     def reset_environment(self, rows=3, cols=4, currentStateW=(2,0), currentStateB=(0,3), currentObs=(1,1), mode='default'):
-        #This is fine, it just re-initializes the board
         if mode == 'init2':
             prev = self.initState
             self.initState = None
