@@ -1,5 +1,5 @@
 import numpy as np
-import AI_BASE_P2.piece as piece 
+import piece
 import random 
 
 class DrunkenEnvironment:

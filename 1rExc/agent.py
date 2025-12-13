@@ -103,7 +103,7 @@ class Agent:
         """
         if random.random() < self.decrease_rate and self.decrease_rate > 0.1:
             self.epsilon -= 0.05
-        return random.choice(self.actions, 0, num_actions - 1)
+        return random.choice(self.actions)
         
     def max_Q(self, state, num_actions):
         """
@@ -113,7 +113,7 @@ class Agent:
         best_reward = float('-inf')
         
         # Per defecte triem una a l'atzar per si totes són iguals
-        best_move = random.choice(self.actions, 0, num_actions - 1)
+        best_move = random.choice(self.actions)
 
         for action in self.actions:
             # Cridava a la funció lookup de la classe externa Qtable

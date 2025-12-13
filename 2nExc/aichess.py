@@ -618,8 +618,8 @@ if __name__ == "__main__":
     aichess = Aichess()
     print("printing board")
     aichess.chess.print_board()
-    paco007 = paco(learning_rate=0.7, future_weight=0.9, exploration_rate=0.9)
-    aichess.qLearningChess(agent=paco007, num_episodes=1000, max_steps_per_episode=200, reward_func='heuristic', stochasticity=0.0)
+    paco007 = paco(learning_rate=0.7, future_weight=0.99, exploration_rate=0.9)
+    aichess.qLearningChess(agent=paco007, num_episodes=2000, max_steps_per_episode=200, reward_func='simple', stochasticity=0.0)
 
     paco007.save_qtable_to_json("trained_agent_qtable_AICHESS.json")
     print("Q-table saved to 'trained_agent_qtable.json'")   

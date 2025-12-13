@@ -70,7 +70,7 @@ def check_convergence_final(loss_history, rewards, min_episodes=50, loss_thresh=
 
 
 
-def Convergence_sim(self, agent, num_episodes, max_steps_per_episode=200, reward_func='heuristic', stochasticity=0.0):
+def Convergence_sim(self, agent, num_episodes, max_steps_per_episode=200, reward_func='simple', stochasticity=0.0):
         """
         Simulatate the agent q-learning to check convergence.
         It's like Q-learning with minor changes to be able to store results and find the point whre the Q-table stabilizes.
@@ -207,10 +207,10 @@ def main():
                 game = aichess.Aichess() 
                 agent_instance = agent.Agent(learning_rate=alpha, future_weight=gamma,exploration_rate=epsilon)
                 
-                num_episodes = 2000
+                num_episodes = 1000
 
                 #Here is where the convergence is calculated it self, if any params needed for change HERE
-                loss_history, rewards = Convergence_sim(game, agent_instance, num_episodes=num_episodes, reward_func='heuristic')
+                loss_history, rewards = Convergence_sim(game, agent_instance, num_episodes=num_episodes, reward_func='heruistic')
                 conv, conv_point, conv_list = check_convergence_final(loss_history, rewards)
                 
                 #If there is a -1, the simulation hasn't reached the stability in Q differences, so we set the maximum

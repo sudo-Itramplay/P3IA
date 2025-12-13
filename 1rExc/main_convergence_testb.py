@@ -35,8 +35,8 @@ def training_loop(env, agent_instance, num_episodes=300):
 
     return paths, rewards
 
-
-def check_convergence(rewards, window=20, min_episodes=50):
+#The min_number of episodes is here to avoid considering inital phantom convergences, 5 movements should be tehe minimun to get to the reward
+def check_convergence(rewards, window=20, min_episodes=5):
     """
     Calcula la convergència.
     min_episodes: Nombre mínim d'episodis abans de comprovar si s'ha estancat.
@@ -88,9 +88,7 @@ def main():
         for gamma in gammas:
             for epsilon in epsilons:
                 env = environment.Environment()
-                agent_instance = agent.Agent(
-                    learning_rate=alpha,
-                    future_weight=gamma,
+                agent_instance = agent.Agent(learning_rate=alpha,future_weight=gamma,
                     exploration_rate=epsilon
                 )
                 iterations=200
@@ -118,7 +116,6 @@ def main():
         f"alpha={best_alpha}, gamma={best_gamma}, epsilon={best_epsilon} "
         f"-> convergence={best_conv:.3f}, reward={best_reward_for_best_conv}, iterations={best_itr}"
     )
-
 
 if __name__ == "__main__":
     main()
