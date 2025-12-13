@@ -354,7 +354,6 @@ class Aichess():
 
         return total / n
 
-#TODO: revisar apartir d'aqui
     def movePieces(self, start, depthStart, to, depthTo):
         
         # To move from one state to the next we will need to find
@@ -407,8 +406,6 @@ class Aichess():
     """   
 
     def isBlackInCheckMate(self, currentState):
-        # Delegate check and mate detection to the superior board functions.
-        # Check: Is the Black King in check?
         if self.chess.isWatchedBk(currentState):
             # Mate: Does Black (color=False) have *any* legal moves left?
             black_legal_moves = self.chess.get_all_next_states(currentState, False)
@@ -422,91 +419,13 @@ class Aichess():
     -----------------------------------------------------------------------------------------------------------
     ###########################################################################################################
     ###########################################################################################################
-    ------------------------------------ <White Check> -----------------------------------------------------------------
-    ###########################################################################################################
-    ###########################################################################################################
-    -----------------------------------------------------------------------------------------------------------
-    """   
-    def isWatchedWk(self, currentState):
-        # boardSim already deprecated
-
-        wkPosition = self.getPieceState(currentState, 6)[0:2]
-        bkState = self.getPieceState(currentState, 12)
-        brState = self.getPieceState(currentState, 8)
-
-        # If the black king has been captured, this is not a valid configuration
-        if bkState is None:
-            return False
-
-        # Check all possible moves for the black king and see if it can capture the white king
-        for bkPosition in self.getNextPositions(bkState):
-            if wkPosition == bkPosition:
-                # White king would be in check
-                return True
-
-        if brState is not None:
-            # Check all possible moves for the black rook and see if it can capture the white king
-            for brPosition in self.getNextPositions(brState):
-                if wkPosition == brPosition:
-                    return True
-
-        return False
-
-    def allWkMovementsWatched(self, currentState):
-
-        # boardSim already deprecated
-        # In this method, we check if the white king is threatened by black pieces
-        # Get the current state of the white king
-        wkState = self.getPieceState(currentState, 6)
-        allWatched = False
-
-        # If the white king is on the edge of the board, it may be more vulnerable
-        if wkState[0] == 0 or wkState[0] == 7 or wkState[1] == 0 or wkState[1] == 7:
-            # Get the state of the black pieces
-            brState = self.getPieceState(currentState, 8)
-            blackState = self.getBlackState(currentState)
-            allWatched = True
-
-            # Get the possible future states for the white pieces
-            nextWStates = self.getListNextStatesW(self.getWhiteState(currentState))
-            for state in nextWStates:
-                newBlackState = blackState.copy()
-                # Check if the black rook has been captured. If so, remove it from the state
-                if brState is not None and brState[0:2] == state[0][0:2]:
-                    newBlackState.remove(brState)
-                state = state + newBlackState
-                # Move the white pieces to their new state
-                self.newBoardSim(state)
-                # Check if the white king is not threatened in this position,
-                # which implies that not all of its possible moves are under threat
-                if not self.isWatchedWk(state):
-                    allWatched = False
-                    break
-
-        # Restore the original board state
-        self.newBoardSim(currentState)
-        return allWatched
-
-
-    def isWhiteInCheckMate(self, currentState):
-        if self.isWatchedWk(currentState) and self.allWkMovementsWatched(currentState):
-            return True
-        return False
-    
-
-
-    """
-    -----------------------------------------------------------------------------------------------------------
-    ###########################################################################################################
-    ###########################################################################################################
     ------------------------------------ <Moviment value> -----------------------------------------------------------------
     ###########################################################################################################
     ###########################################################################################################
     -----------------------------------------------------------------------------------------------------------
     """   
     def heuristica(self, state, step):
-        # Mirem quin és el rook o King 
-        # i els definim
+        # Define Rook and King positions
         if state[0][2] == 2:
             kingPosition = state[1]
             rookPosition = state[0]
@@ -524,9 +443,9 @@ class Aichess():
         dist = (min(rowDiff, colDiff) + abs(rowDiff - colDiff))
 
         if dist == 0:
-            hKing = 100  # Valor alt perquè ja ha arribat
+            hKing = 100  # High reward for being at the target position
         else:
-            # Multipliquem per 3 (o el pes que vulguis) per donar-li valor
+            # Minor negative reward for being closer to the target position
             hKing = 10 * (dist)**-1
 
 
@@ -573,8 +492,6 @@ class Aichess():
         2nd condition : 4-fold repetition of the board state.
         """
 
-        # PRINTS COMENTATS PER FER LA IA
-
         if len(current_state) == 2:
             #print("There are only 2 kings.")
             return True
@@ -605,10 +522,7 @@ class Aichess():
 """    
 
 if __name__ == "__main__":
-    # if len(sys.argv) < 2:
-    #     sys.exit(usage())
-
-    # Initialize an empty 8x8 chess board
+    # Initialize an empty 8x8 chess board 
     
     #EXECUTIONS OF ALL THE METHODS
     print("---------------------------------------------------------------------------")
