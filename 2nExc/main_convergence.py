@@ -75,6 +75,53 @@ def check_convergence(rewards, min_episodes=50):
             
     return avg_best, conv_point, conv_list
 
+import numpy as np
+
+def check_convergence_robust(rewards, window_size=50, threshold_std=0.01):
+    """
+    Detecta convergència basant-se en l'estabilitat de la mitjana i la variància.
+    
+    :param rewards: Llista de recompenses.
+    :param window_size: Nombre d'episodis a mirar (suavitzat).
+    :param threshold_std: Com de petita ha de ser la variació per considerar-ho estable 
+                          (relatiu a l'escala de recompenses, o absolut si es coneix).
+    """
+    if len(rewards) < window_size * 2:
+        return None, -1, []  # No hi ha prous dades
+
+    conv_history = []
+    convergence_episode = -1
+    stable_avg_reward = 0.0
+
+    # Iterem a partir del moment que tenim prou dades per una finestra
+    for i in range(window_size, len(rewards)):
+        # Agafem els últims 'window_size' episodis
+        window = rewards[i-window_size:i]
+        
+        current_avg = np.mean(window)
+        current_std = np.std(window)
+        
+        conv_history.append(current_avg)
+
+        # CRITERI DE CONVERGÈNCIA:
+        # Si la desviació estàndard és molt baixa, significa que els resultats són molt estables.
+        # També podríes mirar si la mitjana actual és gairebé igual a la mitjana de la finestra anterior.
+        
+        if convergence_episode == -1: # Si encara no hem trobat convergència
+            # Aquí assumim que si l'std és baix, hem convergit. 
+            # Ajusta el threshold segons la teva escala de recompenses.
+            if current_std < threshold_std and current_avg > 0: 
+                convergence_episode = i
+                stable_avg_reward = current_avg
+                # No fem 'break' perquè volem veure tot l'historial, 
+                # però ja sabem on ha convergit.
+
+    if convergence_episode == -1:
+        # Si no convergeix, agafem la mitjana dels últims
+        stable_avg_reward = np.mean(rewards[-window_size:])
+        convergence_episode = len(rewards)
+
+    return stable_avg_reward, convergence_episode, conv_history
 
 def Convergence_sim(self, agent, num_episodes, max_steps_per_episode=200, reward_func='simple', stochasticity=0.0):
         #This function is the core of the algorithm that trains the agent using Q-learning
@@ -177,15 +224,15 @@ def Convergence_sim(self, agent, num_episodes, max_steps_per_episode=200, reward
 
 # --- Main Configuration ---
 
-#alphas = [0.1, 0.3, 0.5, 0.7]
-#gammas = [0.5, 0.7, 0.9]
-#epsilons = [0.1, 0.3, 0.5, 0.9]
+alphas = [0.1, 0.3, 0.5, 0.7]
+gammas = [0.5, 0.7, 0.9]
+epsilons = [0.1, 0.3, 0.5, 0.9]
 
-
+"""
 alphas = [0.3, 0.5, 0.7]
 gammas = [0.5, 0.7]
 epsilons = [0.3, 0.5]
-
+"""
 def main():
     convergences = []
     best_conv = float("-inf")
@@ -222,7 +269,7 @@ def main():
                 #rewards = training_simulation(game, agent_instance, num_episodes=NUM_EPISODES, reward_func='heuristic')
                 rewards = Convergence_sim(game, agent_instance, num_episodes=NUM_EPISODES, reward_func='heuristic')
                 # Comprovem convergència
-                conv, conv_point, conv_list = check_convergence(rewards)
+                conv, conv_point, conv_list = check_convergence_robust(rewards)
                 
                 # Si iterations és -1, significa que no ha trobat plateau, posem el màxim
                 conv_iteration = conv_point if conv_point != -1 else NUM_EPISODES
