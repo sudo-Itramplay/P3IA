@@ -118,6 +118,10 @@ class Agent:
         #Actualitzem la taula
         self.q_table[state][action] = new_q
 
+        # Per a monitoritzar els canvis en la Q-table
+        # Retorna la magnitud del canvi en el valor Q
+        return abs(new_q - current_q)
+
     def explore(self, state):
         """
         Retorna una acció aleatòria.

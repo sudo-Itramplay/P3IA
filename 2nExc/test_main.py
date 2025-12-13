@@ -76,62 +76,58 @@ def check_convergence(rewards, min_episodes=50):
     return avg_best, conv_point, conv_list
 
 
-def check_convergence_final(loss_history, rewards, min_episodes=50, loss_thresh=5.0, reward_std_thresh=80.0):
+def check_convergence_final(loss_history, rewards, min_episodes=50, loss_thresh=1.0, reward_std_thresh=10.0):
     """
-    Calcula la convergència.
-    min_episodes: Nombre mínim d'episodis abans de comprovar si s'ha estancat.
+    Calcula la convergència basant-se en l'estabilitat del 'loss' (aprenentatge) 
+    i l'estabilitat de la recompensa (resultat).
     """
-    if len(rewards) == 0:
-        return 0.0, -1
+    if len(rewards) < min_episodes:
+        return 0.0, -1, []
     
-    iterations = -1
-    conv_list=[]
-    # Comencem a 'min_episodes' o a 1, el que sigui més gran.
-    start_index = 1 if min_episodes < 50 else min_episodes
     avg_best = 0.0
-    conv_point=None
+    conv_point = None
+    conv_list = [] 
     
-    for i in range(len(rewards)-1):
+    # Iterem a partir de min_episodes per tenir sempre una finestra completa
+    for i in range(len(rewards)):
         
-        recent_reward = rewards[:i]
-        std_reward = np.std(recent_reward)
+        # 1. Definir la finestra lliscant (els últims 'min_episodes')
+        # Si i < min_episodes, agafem des de l'inici fins a i (encara que sigui petita)
+        start_idx = max(1, i - min_episodes)
+        current_window_rewards = rewards[start_idx:i+1]
+        current_window_loss = loss_history[start_idx:i+1]
+        
+        # Calculem mètriques de la finestra actual
+        std_reward = np.std(current_window_rewards)
+        avg_loss = np.mean(current_window_loss)
+        current_avg_reward = np.mean(current_window_rewards) if len(current_window_rewards) > 0 else 0.0
 
-        if i > start_index and avg_best == 0.0:
+        conv_list.append(std_reward)
 
-            if (rewards[i-1]<0 or rewards[i]<0):
-                conv_list.append(std_reward) 
-                continue  # Ignorem estancaments en recompenses negatives
+        # 2. Comprovació de Convergència (només si tenim prou històric)
+        if i >= min_episodes and conv_point is None:
             
-            recent_reward = rewards[(i-50):i]
-            std_reward = np.std(recent_reward)
-            recent_loss = loss_history[(i-50):i]
-            avg_loss = np.mean(recent_loss)
-
-
-            # A. El cervell està estable (Loss baix)
-            is_brain_stable = avg_loss < loss_thresh
+            # A. El cervell està estable (Loss baix -> l'agent ja no canvia gaire la seva Q-table)
+            is_brain_stable = avg_loss
             
-            # B. Els resultats són estables (Poca variació en els punts)
-            # Nota: No mirem si el reward és alt, sinó si és ESTABLE.
+            # B. Els resultats són estables (Poca variació -> sempre obté resultat similar)
             is_performance_stable = std_reward < reward_std_thresh
-
-            if is_brain_stable and is_performance_stable:
-                # Només considerem estancament si el reward és raonable   
-                if rewards[i] > 0: 
-                    start_window = max(0, i - min_episodes)
-                    avg_best = np.mean(rewards[start_window:i]) 
-                    conv_point = i
-                
-        
-        
-        conv_list.append(std_reward)  
             
-    # Si no troba convergència, retornem el total d'episodis com a "temps de convergència"
+            # C. El resultat és bo (Evitem convergir en un comportament de perdre sempre)
+            # Assumim que rewards positius indiquen bon comportament o victòria
+            is_winning = current_avg_reward > 0 
+
+            if is_performance_stable and is_winning:
+                avg_best = current_avg_reward
+                conv_point = i
+
+                
+    
+    # Si no troba convergència, retornem el total d'episodis
     if conv_point is None:
         return 0.0, -1, conv_list
             
     return avg_best, conv_point, conv_list
-
 
 
 def Convergence_sim(self, agent, num_episodes, max_steps_per_episode=200, reward_func='simple', stochasticity=0.0):
@@ -284,7 +280,13 @@ def main():
                 #rewards = training_simulation(game, agent_instance, num_episodes=NUM_EPISODES, reward_func='heuristic')
                 Qtables, rewards = Convergence_sim(game, agent_instance, num_episodes=NUM_EPISODES, reward_func='heuristic')
                 # Comprovem convergència
-                conv, conv_point, conv_list = check_convergence_final(Qtables, rewards)
+                conv, conv_point, conv_list = check_convergence_final(
+                                                    Qtables,            # Això és el loss_history
+                                                    rewards, 
+                                                    min_episodes=50, 
+                                                    loss_thresh=0.5,    # Ajusta segons els valors que vegis de Loss (printa'ls si cal)
+                                                    reward_std_thresh=20.0 # Ajusta segons la variància desitjada
+                                                )
                 
                 # Si iterations és -1, significa que no ha trobat plateau, posem el màxim
                 conv_iteration = conv_point if conv_point != -1 else NUM_EPISODES
