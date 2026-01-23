@@ -68,15 +68,11 @@ def check_convergence_final(loss_history, rewards, min_episodes=50, loss_thresh=
             
     return avg_best, conv_point, conv_list
 
-
-
 def Convergence_sim(self, agent, num_episodes, max_steps_per_episode=200, reward_func='simple', stochasticity=0.0):
         """
         Simulatate the agent q-learning to check convergence.
         It's like Q-learning with minor changes to be able to store results and find the point whre the Q-table stabilizes.
         """
-
-
         initial_state = self.chess.getCurrentState() 
         initial_state_key = self.state_to_key(initial_state)
         rewards_history = []
