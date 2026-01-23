@@ -38,8 +38,8 @@ def training_loop(env, agent_instance, num_episodes=300):
 
 def check_convergence( rewards, window=20):
     """
-    Mètode de convergencia segons la mitjana de rewards cada 20 episodis.
-    Més alt == millor
+    Check convergence based on average reward over the last `window` episodes.
+    Higher is better.
     """
     if len(rewards) == 0:
         return 0.0, -1

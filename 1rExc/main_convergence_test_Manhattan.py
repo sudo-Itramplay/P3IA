@@ -38,32 +38,28 @@ def training_loop(env, agent_instance, num_episodes=300):
 #The min_number of episodes is here to avoid considering inital phantom convergences, 5 movements should be tehe minimun to get to the reward
 def check_convergence(rewards, window=20, min_episodes=5):
     """
-    Calcula la convergència.
-    min_episodes: Nombre mínim d'episodis abans de comprovar si s'ha estancat.
+    Calculate convergence based on average reward over the last `window` episodes.
+    Higher is better.
     """
     if len(rewards) == 0:
         return 0.0, -1
     
-    # 1. Càlcul de la mitjana final (igual que tenies)
     curr_window = min(window, len(rewards))
     last_rewards = rewards[-curr_window:]
     avg_last = sum(last_rewards) / curr_window
     
     iterations = -1
     
-    # 2. Detectar estancament (plateau), però ignorant el principi
-    # Comencem a 'min_episodes' o a 1, el que sigui més gran.
+    # Plateau detection
     start_index = max(1, min_episodes)
     
     for i in range(start_index, len(rewards)-1):
-        # Comprovem si hi ha 3 valors idèntics consecutius
+        # Checking for three consecutive equal rewards
         if rewards[i-1] == rewards[i] == rewards[i+1]:
-            # Només considerem estancament si el reward és raonable   
             if rewards[i] > -200: 
                 iterations = i
             break
             
-    # Si no troba convergència, retornem el total d'episodis com a "temps de convergència"
     if iterations == -1:
         iterations = len(rewards)
             
