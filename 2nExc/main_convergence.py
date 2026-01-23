@@ -60,7 +60,6 @@ def check_convergence_final(loss_history, rewards, min_episodes=50, loss_thresh=
                 start_window = max(0, i - min_episodes)
                 avg_best = np.mean(rewards[start_window:i]) 
                 conv_point = i
-        
             
     #Case we have not found any convergence point, we return 0.0 and -1
     if conv_point is None:

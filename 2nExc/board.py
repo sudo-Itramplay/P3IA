@@ -310,6 +310,39 @@ class Board:
         occupancy = {(r, c) for r, c, _ in current_state}
         return self._is_square_attacked_by_king(bk[0:2], white_kings) or self._is_square_attacked_by_rook(bk[0:2], white_rooks, occupancy)
 
+    def isWatchedWk(self, current_state):
+        """Indica si el rei blanc està en escac (casella atacada per rei/torre negra)."""
+        wk = self.getPieceState(current_state, 6)
+        if wk is None:
+            return False
+        black_state = self.getBlackState(current_state)
+        bk = self.getPieceState(current_state, 12)
+        br = self.getPieceState(current_state, 8)
+        black_rooks = [br] if br else []
+        black_kings = [bk] if bk else []
+        occupancy = {(r, c) for r, c, _ in current_state}
+        return self._is_square_attacked_by_king(wk[0:2], black_kings) or self._is_square_attacked_by_rook(wk[0:2], black_rooks, occupancy)
+
+    def is_legal_transition(self, current_player_state, rival_state, moves, color):
+        """Construeix l'estat següent i valida moviment únic i rei propi fora d'escac."""
+        if not self.verify_single_piece_moved(current_player_state, moves):
+            return False, None
+
+        move_info = self.getMovement(current_player_state, moves)
+        if move_info[0] is None or move_info[1] is None:
+            return False, None
+
+        new_pos_coords = move_info[1][0:2]
+        new_rival_state = [p for p in rival_state if p[0:2] != new_pos_coords]
+
+        next_node = moves + new_rival_state
+
+        if color and self.isWatchedWk(next_node):
+            return False, None
+        if (not color) and self.isWatchedBk(next_node):
+            return False, None
+
+        return True, next_node
 
     def get_all_next_states(self, current_state, color):
         """Returns all possible legal next states for the given color."""
